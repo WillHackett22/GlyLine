@@ -127,9 +127,9 @@ class PSMMetaDataTable(DataTable):
         dl=dfPSMMetaMaster.shape[0]
         tempvec=[0]*dl
         for j in range(dl):
-            tempval=self.dfGPIonAssoc.loc[self.dfGPIonAssoc['glycopeptide']==dfPSMMetaMaster['glycopeptide'].iloc[j],'GPID'].values
-            if tempval.size>0:
-                tempvec[j]=tempval
+            tempval=self.dfGPIonAssoc.loc[self.dfGPIonAssoc['glycopeptide']==dfPSMMetaMaster['glycopeptide'].iloc[j],'GPID'].values.tolist()
+            if len(tempval)==1:
+                tempvec[j]=tempval[0]
             else:
                 tempvec[j]=np.max(self.dfGPIonAssoc['GPID'].values)+1
         dfPSMMetaMaster['GPID']=tempvec

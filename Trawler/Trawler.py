@@ -31,6 +31,60 @@ def PPMBounds(array,threshold=20):
     lower=array-array*threshold/1000000
     return lower, upper
 
+def binsearch(arr,x):
+    low = 0
+    high = len(arr) - 1
+    mid = 0
+    while low <= high:
+        mid = (high + low) // 2
+        if arr[mid] < x:
+            low = mid + 1
+        elif arr[mid] > x:
+            high = mid - 1
+        else:
+            return mid
+    return -1
+
+#this class is to help speed up our target matching by filtering neutral masses with binsearch first
+class ReduceByRounding:
+    def __init__(self,colid,targetdf):
+        self.colid=colid
+        self.targetdf=targetdf
+    
+    def RoundedDFGenerator(self):
+        roundeddf=pd.DataFrame(None,columns=['rounded',self.colid])
+        roundeddf['rounded']=round(self.targetdf['upper']).tolist()+round(self.targetdf['lower']).tolist()
+        roundeddf[self.colid]=self.targetdf.index.values.tolist()*2
+        self.roundeddf=roundeddf
+    
+    def RoundedGrouper(self):
+        groupeddf=self.roundeddf.groupby(['rounded'])
+        self.groupeddf=groupeddf
+
+    def RoundedUniqueNSort(self):
+        uniround=self.roundeddf['rounded'].unique()
+        uniroundsort=uniround[uniround.argsort()].tolist()
+        self.uniroundsort=uniroundsort
+        
+    def RoundedInitialize(self):
+        self.RoundedDFGenerator()
+        self.RoundedGrouper()
+        self.RoundedUniqueNSort()
+        
+    def RoundedTargetIDs(self,peakvalue):
+        roundpeak=round(peakvalue)
+        roundpeakloc=binsearch(self.uniroundsort, roundpeak)
+        if roundpeakloc!=-1:
+            rval=self.uniroundsort[roundpeakloc]
+            temptargetids=np.unique(self.groupeddf.get_group(rval)[self.colid].tolist()).tolist()
+        else:
+            temptargetids=[]
+        return temptargetids
+    
+    def ReducedTarget(self,temptargetids):
+        temptargetdf=self.targetdf.loc[temptargetids]
+        return temptargetdf
+
 #this class makes the target list, msppm is the ppm
 class IonTargetList:
     def __init__(self,msppm=[10,20]):
@@ -48,9 +102,16 @@ class IonTargetList:
         
     def MS2Maker(self,df,colid='IonID',mslvl=1):
         self.dfMS2Targets=self.Maker(df,colid,mslvl)
+        self.dfMS2Rounded=self.RoughMaker(self.dfMS2Targets,colid)
     
     def MS1Maker(self,df,colid='GPID',mslvl=0):
         self.dfMS1Targets=self.Maker(df,colid,mslvl)
+        self.dfMS1Rounded=self.RoughMaker(self.dfMS1Targets,colid)
+    
+    def RoughMaker(self,targetdf,colid):
+        roundedobj=ReduceByRounding(colid, targetdf)
+        roundedobj.RoundedInitialize()
+        return roundedobj
         
     def BoundMS2Bool(self,peakvalue):
          return any((self.dfMS2Targets['upper']>=peakvalue) & (self.dfMS2Targets['lower']<=peakvalue))
