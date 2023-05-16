@@ -87,3 +87,8 @@ def MassCalc(dfIon):
     gps=[g[0] for g in mass1.keys()]
     ions=[g[1] for g in mass1.keys()]
     return mass, gps, ions
+
+def PeptideReducer(dfMeta):
+    peps=[gpep.split("{")[0] for gpep in dfMeta['glycopeptide']]
+    dfMeta['peptide']=peps
+    
