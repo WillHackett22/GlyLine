@@ -109,6 +109,7 @@ class GPIonAssociation(IonMetaDataTable):
         dfGPIonAssoc['GPID']=dfGPIonAssoc['GPID']+1
         dfGPIonAssoc=dfGPIonAssoc.set_index('GPID')
         self.dfGPIonAssoc=dfGPIonAssoc
+        dfGPIonAssoc['GPID']=dfGPIonAssoc.index.values.tolist()
         # let's get the inverse association table
         dfGPIonAssocMod=dfGPIonAssoc.drop(['IonID'],axis=1)
         dfTemp=pd.merge(self.dfIonMetaMaster,dfGPIonAssocMod,on='glycopeptide')
