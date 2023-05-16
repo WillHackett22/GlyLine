@@ -117,7 +117,7 @@ class IonTargetList:
         return any((targetdf['upper']>=peakvalue) & (targetdf['lower']<=peakvalue))
         
     def BoundIndex(self,peakvalue,targetdf):
-        ID=targetdf.index[np.where((targetdf['upper']>=peakvalue) & (targetdf['lower']<=peakvalue))].values.tolist()
+        ID=targetdf.index[np.where((targetdf['upper']>=peakvalue) & (targetdf['lower']<=peakvalue))].values
         return ID
         
     def BoundMS2Bool(self,peakvalue):
