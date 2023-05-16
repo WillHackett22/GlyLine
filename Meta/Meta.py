@@ -98,9 +98,15 @@ class GPIonAssociation(IonMetaDataTable):
     def GP_Ion_Data(self):
         if hasattr(self,'dfIonMetaMaster')==False:
             self.ListReader()
-        self.dfGPIonAssoc=self.dfIonMetaMaster.groupby(['glycopeptide'])['IonID'].apply(np.unique).reset_index()
-        self.dfGPIonAssoc['GPID']=range(self.dfGPIonAssoc.shape[0])
-        self.dfGPIonAssoc['GPID']=self.dfGPIonAssoc['GPID']+1
+        dfGPIonAssoc=self.dfIonMetaMaster.groupby(['glycopeptide'])['IonID'].apply(list).reset_index()
+        dfGPIonAssoc['GPID']=range(dfGPIonAssoc.shape[0])
+        dfGPIonAssoc.set_index('GPID')
+        self.dfGPIonAssoc=dfGPIonAssoc
+        # let's get the inverse association table
+        dfGPIonAssocMod=dfGPIonAssoc.drop(['IonID'],axis=1)
+        dfTemp=pd.merge(self.dfIonMetaMaster,dfGPIonAssocMod,on='glycopeptide')
+        dfIonGPAssoc=dfTemp.groupby(['IonID'])['GPID'].apply(list).reset_index()
+        self.dfIonGPAssoc=dfIonGPAssoc
         
     def GPIonWriter(self):
         self.dfGPIonAssoc.to_hdf(self.h5file,key=self.GPIkey,mode='a')
