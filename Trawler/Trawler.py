@@ -101,17 +101,24 @@ class IonTargetList:
         return dfTargets
         
     def MS2Maker(self,df,mslvl=1):
-        self.dfMS2Targets=self.Maker(df,mslvl)
-        self.dfMS2Rounded=self.RoughMaker(self.dfMS2Targets)
+        dfMS2Targets=self.Maker(df,mslvl)
+        self.dfMS2Objects=self.RoughMaker(dfMS2Targets)
     
     def MS1Maker(self,df,mslvl=0):
-        self.dfMS1Targets=self.Maker(df,mslvl)
-        self.dfMS1Rounded=self.RoughMaker(self.dfMS1Targets)
+        dfMS1Targets=self.Maker(df,mslvl)
+        self.dfMS1Objects=self.RoughMaker(dfMS1Targets)
     
     def RoughMaker(self,targetdf):
         roundedobj=ReduceByRounding(targetdf)
         roundedobj.RoundedInitialize()
         return roundedobj
+    
+    def BoundBool(self,peakvalue,targetdf):
+        return any((targetdf['upper']>=peakvalue) & (targetdf['lower']<=peakvalue))
+        
+    def BoundIndex(self,peakvalue,targetdf):
+        ID=targetdf.index[np.where((targetdf['upper']>=peakvalue) & (targetdf['lower']<=peakvalue))].values.tolist()
+        return ID
         
     def BoundMS2Bool(self,peakvalue):
          return any((self.dfMS2Targets['upper']>=peakvalue) & (self.dfMS2Targets['lower']<=peakvalue))
