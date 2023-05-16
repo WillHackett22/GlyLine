@@ -32,11 +32,6 @@ class IonMetaDataTable(DataTable):
         Helper.FragmentType(dfIonMeta)
         return dfIonMeta
     
-    def GlycanSimplifier(self,dfMeta):
-        temp=dfMeta.where(dfMeta['fragment_type']=='Glycan').groupby(['fragment_name'])['IonID'].min().reset_index()
-        for i, frag in enumerate(temp['fragment_name']):
-            dfMeta.loc[dfMeta['fragment_name']==frag,'IonID']=temp['IonID'][i]
-    
     def IonMasterListMaker(self):
         dfIonMetaMasterTemp=pd.DataFrame(data=None,columns=['neutralmass','glycopeptide','peptide','fragment_name','fragment_type'])
         for f in self.files:
@@ -75,10 +70,12 @@ class IonMetaDataTable(DataTable):
         StubGroups['IonID']=StubGroups['IonID']+GlyGroups.shape[0]+PepGroups.shape[0]
         # reattach stubs
         StubMetaIDed=pd.merge(StubGroups,StubMeta,on=['peptide','fragment_name'])
+        # bring it all together
         dfIonMetaMaster=pd.concat([StubMetaIDed,PepMetaIDed,GlyMetaIDed])
-        dfIonMetaMaster.loc[dfIonMetaMaster['fragment_type']=="Glycan",'peptide']='Oxonium'
+        #getting the unique values for target list
         unidx=[i for i,x in enumerate(dfIonMetaMaster.duplicated(['IonID'])) if x==False]
         dfIonMetaUnique=dfIonMetaMaster.iloc[unidx,].reset_index()
+        dfIonMetaUnique.loc[dfIonMetaUnique['fragment_type']=="Glycan",'peptide']='Oxonium'
         dfIonMetaUnique=dfIonMetaUnique.drop(['glycopeptide','index'],axis=1)
         dfIonMetaUnique=dfIonMetaUnique.set_index('IonID')
         self.dfIonMetaMaster = dfIonMetaMaster
