@@ -31,6 +31,7 @@ class IonMetaDataTable(DataTable):
         dfIonMeta['fragment_name']=ions
         dfIonMeta['neutralmass']=mass
         Helper.FragmentType(dfIonMeta)
+        Helper.PeptideReducer(dfIonMeta)
         return dfIonMeta
     
     def IonMasterListMaker(self):
@@ -45,7 +46,7 @@ class IonMetaDataTable(DataTable):
         dfIonMetaMasterTemp=dfIonMetaMasterTemp.loc[ix,]
         # reduce to glycans
         GlyMeta=dfIonMetaMasterTemp.loc[dfIonMetaMasterTemp['fragment_type']=='Glycan']
-        #produce IDs for unique glycnas
+        #produce IDs for unique glycans
         GlyGroups=GlyMeta.groupby(['fragment_name'])['neutralmass'].apply(list).reset_index()
         GlyGroups['IonID']=range(GlyGroups.shape[0])
         GlyGroups=GlyGroups.drop(['neutralmass'],axis=1)
@@ -106,7 +107,7 @@ class GPIonAssociation(IonMetaDataTable):
         dfGPIonAssoc['GPID']=range(dfGPIonAssoc.shape[0])
         #add 1 so that GPID 0 is miscellaneous
         dfGPIonAssoc['GPID']=dfGPIonAssoc['GPID']+1
-        dfGPIonAssoc.set_index('GPID')
+        dfGPIonAssoc=dfGPIonAssoc.set_index('GPID')
         self.dfGPIonAssoc=dfGPIonAssoc
         # let's get the inverse association table
         dfGPIonAssocMod=dfGPIonAssoc.drop(['IonID'],axis=1)
