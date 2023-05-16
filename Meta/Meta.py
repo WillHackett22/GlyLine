@@ -104,6 +104,8 @@ class GPIonAssociation(IonMetaDataTable):
             self.ListReader()
         dfGPIonAssoc=self.dfIonMetaMaster.groupby(['glycopeptide'])['IonID'].apply(list).reset_index()
         dfGPIonAssoc['GPID']=range(dfGPIonAssoc.shape[0])
+        #add 1 so that GPID 0 is miscellaneous
+        dfGPIonAssoc['GPID']=dfGPIonAssoc['GPID']+1
         dfGPIonAssoc.set_index('GPID')
         self.dfGPIonAssoc=dfGPIonAssoc
         # let's get the inverse association table
@@ -145,6 +147,7 @@ class PSMMetaDataTable(DataTable):
         self.runIDs=runidentifier
         self.index=index
         self.key=PSMkey
+        self.unikey=PSMkey+'Unique'
         self.GPIkey=GPIkey
         
         
@@ -172,6 +175,7 @@ class PSMMetaDataTable(DataTable):
                                         'ms2_score','q_value'])
         for f in range(len(self.files)):
             dfPSMTemp=Helper.GSoftCSVRead(self.files[f],subset=['glycopeptide'],index=self.index,PSMBool=True)
+            dfPSMTemp=dfPSMTemp.loc[dfPSMTemp['is_best_match']=="TRUE",]
             MetaTemp=self.PSMMetadata(dfPSMTemp,self.runIDs[f])
             dfPSMMetaMasterTemp=pd.concat([dfPSMMetaMasterTemp,MetaTemp],ignore_index=True)
         
@@ -189,13 +193,18 @@ class PSMMetaDataTable(DataTable):
                 tempvec[j]=np.max(self.dfGPIonAssoc['GPID'].values)+1
         dfPSMMetaMaster['GPID']=tempvec
         self.dfPSMMetaMaster = dfPSMMetaMaster
+        unidx=[i for i,x in enumerate(dfPSMMetaMaster.duplicated(['GPID'])) if x==False ]
+        self.dfMS1Unique=dfPSMMetaMaster.iloc[unidx,]
+        self.dfMS1Unique.set_index('GPID')
         
     def ListWriter(self):
         self.dfPSMMetaMaster.to_hdf(self.h5file,key=self.key,mode='a')
+        self.dfMS1Unique.to_hdf(self.h5file,key=self.unikey,mode='a')
     
     def ListReader(self,key1=None):
         if key1==None:
             self.dfPSMMetaMaster=pd.read_hdf(self.h5file, self.key)
+            self.dfMS1Unique=pd.read_hdf(self.h5file, self.unikey)
         else:
             self.dfGPIonAssoc=pd.read_hdf(self.h5file, key=key1)
         
