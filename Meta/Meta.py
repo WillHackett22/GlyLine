@@ -175,7 +175,7 @@ class PSMMetaDataTable(DataTable):
                                         'ms2_score','q_value'])
         for f in range(len(self.files)):
             dfPSMTemp=Helper.GSoftCSVRead(self.files[f],subset=['glycopeptide'],index=self.index,PSMBool=True)
-            dfPSMTemp=dfPSMTemp.loc[dfPSMTemp['is_best_match']=="TRUE",]
+            dfPSMTemp=dfPSMTemp.loc[dfPSMTemp['is_best_match']==True,]
             MetaTemp=self.PSMMetadata(dfPSMTemp,self.runIDs[f])
             dfPSMMetaMasterTemp=pd.concat([dfPSMMetaMasterTemp,MetaTemp],ignore_index=True)
         
