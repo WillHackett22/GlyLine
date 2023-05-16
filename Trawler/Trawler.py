@@ -147,6 +147,7 @@ class ProductPeakData(tb.IsDescription):
     Intensity = tb.Float64Col()
     Decon = tb.Float32Col()
     PrecursorID = tb.Int32Col()
+    GPID = tb.Int32Col()
     
 
 
