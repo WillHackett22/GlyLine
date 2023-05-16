@@ -21,6 +21,7 @@ class IonMetaDataTable(DataTable):
         self.files=filelist
         self.index=index
         self.key=key
+        self.unikey=key+'Unique'
         
         
     def IonMetadata(self,dfIon):
@@ -83,17 +84,20 @@ class IonMetaDataTable(DataTable):
         
     def ListWriter(self):
         self.dfIonMetaMaster.to_hdf(self.h5file,key=self.key,mode='a')
+        self.dfIonMetaUnique.to_hdf(self.h5file,key=self.unikey,mode='a')
     
     def ListReader(self):
         self.dfIonMetaMaster=pd.read_hdf(self.h5file, key=self.key)
-
+        self.dfIonMetaUnique=pd.read_hdf(self.h5file,key=self.unikey)
 
         
-### This is the class for the glycopeptide to ion association table
+### This is the class for the glycopeptide to ion association table and viceversa
 class GPIonAssociation(IonMetaDataTable):
-    def __init__(self,hdf5file,filelistspec=None,GPIkey='GlyIonAssoc'):
+    def __init__(self,hdf5file,filelistspec=None,GPIkey='GlyIonAssoc',IGPkey='IonGlyAssoc'):
         super().__init__(hdf5file,filelistspec)
         self.GPIkey=GPIkey
+        self.IGPkey=IGPkey
+        
     
     def GP_Ion_Data(self):
         if hasattr(self,'dfIonMetaMaster')==False:
@@ -107,12 +111,27 @@ class GPIonAssociation(IonMetaDataTable):
         dfTemp=pd.merge(self.dfIonMetaMaster,dfGPIonAssocMod,on='glycopeptide')
         dfIonGPAssoc=dfTemp.groupby(['IonID'])['GPID'].apply(list).reset_index()
         self.dfIonGPAssoc=dfIonGPAssoc
-        
+    
+    def IonGPWriter(self):
+        self.dfIonGPAssoc.to_hdf(self.h5file,key=self.IGPkey,mode='a')
+    
     def GPIonWriter(self):
         self.dfGPIonAssoc.to_hdf(self.h5file,key=self.GPIkey,mode='a')
+        
+    def AssocWriter(self):
+        self.IonGPWriter()
+        self.GPIonWriter()
     
     def GPIonReader(self):
         self.dfGPIonAssoc=pd.read_hdf(self.h5file,key=self.GPIkey)
+    
+    def IonGPReader(self):
+        self.dfIonGPAssoc=pd.read_hdf(self.h5file,key=self.IGPkey)
+        
+    def AssocReader(self):
+        self.GPIonReader()
+        self.IonGPReader()
+    
         
 
 #this is to gather the info on precursors
