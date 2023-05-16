@@ -47,15 +47,17 @@ def binsearch(arr,x):
 
 #this class is to help speed up our target matching by filtering neutral masses with binsearch first
 class ReduceByRounding:
-    def __init__(self,colid,targetdf):
-        self.colid=colid
+    def __init__(self,targetdf):
         self.targetdf=targetdf
+        self.colid=targetdf.index.name
     
     def RoundedDFGenerator(self):
         roundeddf=pd.DataFrame(None,columns=['rounded',self.colid])
         roundeddf['rounded']=round(self.targetdf['upper']).tolist()+round(self.targetdf['lower']).tolist()
         roundeddf[self.colid]=self.targetdf.index.values.tolist()*2
-        self.roundeddf=roundeddf
+        runix=[i for i,x in enumerate(roundeddf.duplicated(['rounded',self.colid])) if x==False]
+        roundeddfout=roundeddf.iloc[runix,]
+        self.roundeddf=roundeddfout
     
     def RoundedGrouper(self):
         groupeddf=self.roundeddf.groupby(['rounded'])
@@ -90,26 +92,24 @@ class IonTargetList:
     def __init__(self,msppm=[10,20]):
         self.msppm=msppm
         
-    def Maker(self,df,colid,mslvl):
-        ix=[i for i,x in enumerate(df[colid].duplicated()) if x==False]
-        temp=df.iloc[ix,]
-        l, u =PPMBounds(temp['neutralmass'],self.msppm[mslvl])
+    def Maker(self,df,mslvl):
+        l, u =PPMBounds(df['neutralmass'],self.msppm[mslvl])
         dfTargets=pd.DataFrame(data=None,columns=['upper','lower'])
         dfTargets['upper']=u
         dfTargets['lower']=l
-        dfTargets.index=temp[colid]
+        dfTargets.index=df.index
         return dfTargets
         
-    def MS2Maker(self,df,colid='IonID',mslvl=1):
-        self.dfMS2Targets=self.Maker(df,colid,mslvl)
-        self.dfMS2Rounded=self.RoughMaker(self.dfMS2Targets,colid)
+    def MS2Maker(self,df,mslvl=1):
+        self.dfMS2Targets=self.Maker(df,mslvl)
+        self.dfMS2Rounded=self.RoughMaker(self.dfMS2Targets)
     
-    def MS1Maker(self,df,colid='GPID',mslvl=0):
-        self.dfMS1Targets=self.Maker(df,colid,mslvl)
-        self.dfMS1Rounded=self.RoughMaker(self.dfMS1Targets,colid)
+    def MS1Maker(self,df,mslvl=0):
+        self.dfMS1Targets=self.Maker(df,mslvl)
+        self.dfMS1Rounded=self.RoughMaker(self.dfMS1Targets)
     
-    def RoughMaker(self,targetdf,colid):
-        roundedobj=ReduceByRounding(colid, targetdf)
+    def RoughMaker(self,targetdf):
+        roundedobj=ReduceByRounding(targetdf)
         roundedobj.RoundedInitialize()
         return roundedobj
         
