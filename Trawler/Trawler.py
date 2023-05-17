@@ -135,8 +135,8 @@ class IonTargetList:
         return ID
             
 #describe the data structure that trawler writes to
-# DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorID
-# DIA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorID | acq_range
+# DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx
+# DIA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx | acq_range
 class ProductPeakData(tb.IsDescription):
     RunID = tb.StringCol(16)
     IonID = tb.Int32Col()
@@ -146,7 +146,8 @@ class ProductPeakData(tb.IsDescription):
     Charge = tb.Int8Col()
     Intensity = tb.Float64Col()
     Decon = tb.Float32Col()
-    PrecursorID = tb.Int32Col()
+    PrecursorIdx = tb.Int32Col()
+    ProductIdx = tb.Int32Col()
     GPID = tb.Int32Col()
     
 
@@ -162,7 +163,7 @@ class PrecursorPeakData(tb.IsDescription):
     Charge = tb.Int8Col()
     Intensity = tb.Float64Col()
     Decon = tb.Float32Col()
-    PrecursorID = tb.Int32Col()
+    PrecursorIdx = tb.Int32Col()
     GPID = tb.Int32Col()
     Overlap = tb.Int8Col()
     
