@@ -200,7 +200,8 @@ class PrecursorPeakData(tb.IsDescription):
 
 #this class will go through 1 mzML file
 class Trawler:
-    def __init__(self,mzML,hdf5file,runidentifier=None,ms1key='MS1',ms2key='MS2',title=None,ms1title=None,ms2title=None,h5index=False,start_from=None,end_at=None,ms1_deconargs=None,collect_allMS1=True):
+    def __init__(self,mzML,hdf5file,runidentifier=None,ms1key='MS1',ms2key='MS2',
+                 title=None,ms1title=None,ms2title=None,h5index=False,start_from=None,end_at=None,ms1_deconargs=None,collect_allMS1=True):
         self.scan_object=msdomzml.ProcessedMzMLDeserializer(mzML)
         self.scan_source=mzML
         self.h5file=hdf5file
