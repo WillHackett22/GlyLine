@@ -283,6 +283,41 @@ class Trawler:
         ms1row['Decon']=peak.score
         ms1row['GPID']=hit
         ms1row.append()
+    
+    def CheckMSTargetsSub(self,roundedobj,peak):
+        tempids=roundedobj.RoundedTargetIDs(peak.neutral_mass)
+        if len(tempids)>0:
+            temptarg=roundedobj.ReducedTarget(tempids)
+            hits=roundedobj.BoundIndex(peak.neutral_mass,temptarg)
+        else:
+            hits=[]
+        return hits
+    
+    def CheckMS1Targets(self,scan,peak,ms1counter):
+        hits=self.CheckMSTargetsSub(self.targetlist.dfM12Objects,peak)
+        if len(hits)>0:
+            for hit in hits:
+                self.MS1RowCollect(scan,peak,hit)
+                ms1counter+=1
+    
+    def CheckMS2Targets(self,prod,peak,prehits,ms2counter):
+        hits=self.CheckMSTargetsSub(self.targetlist.dfMS2Objects,peak)
+        if len(hits)>0:
+            for hit in hits:
+                for prehit in prehits:
+                   self.MS2RowCollect(prod,peak,hit,prehit)
+                   ms2counter+=1
+    
+    def ProductScanChecker(self,prod,ms2counter):
+        if prod.precursor_information.orphan | prod.precursor_information.orphan:
+            prehits=[0]
+        else:
+            prehits=self.CheckMSTargetsSub(self.targetlist.dfMS1Objects,prod.precursor_information.neutral_mass)
+            if len(prehits)==0:
+                prehits=[0]
+        for peak in prod.deconvoluted_peak_set:
+            self.CheckMS2Targets(peak,prehits,ms2counter)
+        self.ProductIdx+=1
         
     def Trawling(self):
         for scan in self.iter:
