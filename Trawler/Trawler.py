@@ -221,6 +221,8 @@ class Trawler:
         self.runID=runidentifier
         self.PrecursorIdx=0
         self.ProductIdx=0
+        self.ms1counter=0
+        self.ms2counter=0
         self.collect_allMS1=collect_allMS1
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
     
@@ -293,20 +295,20 @@ class Trawler:
             hits=[]
         return hits
     
-    def CheckMS1Targets(self,scan,peak,ms1counter):
-        hits=self.CheckMSTargetsSub(self.targetlist.dfM12Objects,peak)
+    def CheckMS1Targets(self,scan,peak):
+        hits=self.CheckMSTargetsSub(self.targetlist.dfMS1Objects,peak)
         if len(hits)>0:
             for hit in hits:
                 self.MS1RowCollect(scan,peak,hit)
-                ms1counter+=1
+                self.ms1counter+=1
     
-    def CheckMS2Targets(self,prod,peak,prehits,ms2counter):
+    def CheckMS2Targets(self,prod,peak,prehits):
         hits=self.CheckMSTargetsSub(self.targetlist.dfMS2Objects,peak)
         if len(hits)>0:
             for hit in hits:
                 for prehit in prehits:
                    self.MS2RowCollect(prod,peak,hit,prehit)
-                   ms2counter+=1
+                   self.ms2counter+=1
     
     def ProductScanChecker(self,prod,ms2counter):
         if prod.precursor_information.orphan | prod.precursor_information.orphan:
@@ -323,21 +325,21 @@ class Trawler:
         for scan in self.iter:
             self.Scooper(scan)
             self.PrecursorIdx+=1
-            self.ms1table.flush()
-            self.ms2table.flush()
+        self.ms1table.flush()
+        self.ms2table.flush()
                 
     def Scooper(self,scan):
-        plist=np.array([s.mz for s in scan.precursor.deconvoluted_peak_set])
-        for acq in scan.products:
-            if any((acq.isolation_window.upper_bound > plist) & (plist > acq.isolation_window.lower_bound)):
-                hold=plist[(acq.isolation_window.upper_bound > plist) & (plist > acq.isolation_window.lower_bound)]
-                for pretemp in hold:
-                    pre=scan.precursor.deconvoluted_peak_set.has_peak(pretemp,use_mz=True)
-                    self.BigScoop(pre,scan.precursor.scan_time.real,mz=True)
-                for peak in acq.deconvoluted_peak_set:
-                    if self.targetlist.BoundMS2Bool(peak.neutral_mass):
-                        self.LittleScoop(peak,acq)
-            self.ProductIdx+=1
+        if self.collect_allMS1: 
+            for peak in scan.precursor.deconvoluted_peak_set:    
+                self.CheckMS1Targets(peak)                
+        for prod in scan.products:
+            self.ProductScanChecker(prod)
+        if self.ms1counter>=200:
+            self.ms1table.flush()
+            self.ms1counter=0
+        if self.ms2counter>=200:
+            self.ms2table.flush()
+            self.ms2counter=0
             
         
         
