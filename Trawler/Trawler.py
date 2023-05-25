@@ -219,7 +219,8 @@ class Trawler:
         self.startscan=start_from
         self.endscan=end_at
         self.runID=runidentifier
-        self.PrecursorID=0
+        self.PrecursorIdx=0
+        self.ProductIdx=0
         self.collect_allMS1=collect_allMS1
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
     
@@ -255,9 +256,38 @@ class Trawler:
             self.group2=self.h5connection.root.MS2
             self.ms2table=self.group2.MS2
     
+    def MS2RowCollect(self,prod,peak,hit,prehit,hitct):
+        ms2row=self.ms2table.row
+        ms2row['RunID']=self.runID
+        ms2row['ProductIdx']=self.ProductIdx
+        ms2row['PrecursorIdx']=self.PrecursorIdx
+        ms2row['Time']=prod.scan_time.real
+        ms2row['Overlap']=hitct
+        ms2row['NeutralMass']=peak.neutral_mass
+        ms2row['Charge']=peak.charge
+        ms2row['Intensity']=peak.intensity.real
+        ms2row['Decon']=peak.score
+        ms2row['IonID']=hit
+        ms2row['GPID']=prehit
+        ms2row.append()
+    
+    def MS1RowCollect(self,scan,peak,hit,hitct):
+        ms1row=self.ms1table.row
+        ms1row['Time']=scan.precursor.scan_time.real
+        ms1row['RunID']=self.runID
+        ms1row['PrecursorID']=self.PrecursorID 
+        ms1row['Overlap']=hitct
+        ms1row['NeutralMass']=peak.neutral_mass
+        ms1row['Charge']=peak.charge
+        ms1row['Intensity']=peak.intensity.real
+        ms1row['Decon']=peak.score
+        ms1row['GPID']=hit
+        ms1row.append()
+        
     def Trawling(self):
         for scan in self.iter:
             self.Scooper(scan)
+            self.PrecursorIdx+=1
             self.ms1table.flush()
             self.ms2table.flush()
     
@@ -267,7 +297,8 @@ class Trawler:
         for iidx in range(len(tempidx)):
             ms2row['Time']=acq.scan_time.real
             ms2row['RunID']=self.runID
-            ms2row['PrecursorID']=self.PrecursorID+self.prodN
+            ms2row['PrecursorIdx']=self.PrecursorIdx
+            ms2row['ProductIdx']=self.ProductIdx
             ms2row['Overlap']=sum([len(tempidx)>1])
             ms2row['IonID']=tempidx[iidx]
             ms2row['NeutralMass']=peak.neutral_mass
@@ -293,7 +324,7 @@ class Trawler:
                         ms1row['Decon']=0
                     else:
                         ms1row['Decon']=pre.score
-                    ms1row['PrecursorID']=self.PrecursorID+self.prodN
+                    ms1row['PrecursorIdx']=self.PrecursorIdx+self.prodN
                     ms1row.append()
                 else:  
                     for iidx in range(len(tempidx)):
@@ -309,7 +340,7 @@ class Trawler:
                             ms1row['Decon']=0
                         else:
                             ms1row['Decon']=pre.score
-                        ms1row['PrecursorID']=self.PrecursorID+self.prodN
+                        ms1row['PrecursorIdx']=self.PrecursorIdx+self.prodN
                         ms1row.append()
 
 
@@ -318,17 +349,15 @@ class TrawlerDDA(Trawler):
         super().__init__(mzML,hdf5file,runidentifier,ms1key,ms2key,title,ms1title,ms2title,h5index,start_from,end_at,ms1_deconargs)
             
     def Scooper(self,scan):
-        self.PrecursorID+=1000
-        self.prodN=0
         if len(scan.products)!=0:
             for acq in scan.products:  
-                self.prodN+=1
                 premass=acq.precursor_information.extracted_neutral_mass
                 pre=scan.precursor.deconvoluted_peak_set.has_peak(premass)
                 self.BigScoop(acq,pre,scan.precursor.scan_time.real)
                 for peak in acq.deconvoluted_peak_set:
                     if self.targetlist.BoundMS2Bool(peak.neutral_mass):
                         self.LittleScoop(peak,acq)
+                self.ProductIdx+=1
             
 
 ### DIA Functionality below this line
@@ -338,11 +367,8 @@ class TrawlerDIA(Trawler):
         super().__init__(mzML, hdf5file,runidentifier,ms1key,ms2key,title,ms1title,ms2title,h5index,start_from,end_at,ms1_deconargs)
             
     def Scooper(self,scan):
-        self.PrecursorID+=1000
-        self.prodN=0
         plist=np.array([s.mz for s in scan.precursor.deconvoluted_peak_set])
         for acq in scan.products:
-            self.prodN+=1
             if any((acq.isolation_window.upper_bound > plist) & (plist > acq.isolation_window.lower_bound)):
                 hold=plist[(acq.isolation_window.upper_bound > plist) & (plist > acq.isolation_window.lower_bound)]
                 for pretemp in hold:
@@ -351,6 +377,7 @@ class TrawlerDIA(Trawler):
                 for peak in acq.deconvoluted_peak_set:
                     if self.targetlist.BoundMS2Bool(peak.neutral_mass):
                         self.LittleScoop(peak,acq)
+            self.ProductIdx+=1
             
         
         
