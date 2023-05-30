@@ -278,7 +278,7 @@ class Trawler:
         ms1row=self.ms1table.row
         ms1row['Time']=scan.precursor.scan_time.real
         ms1row['RunID']=self.runID
-        ms1row['PrecursorID']=self.PrecursorID 
+        ms1row['PrecursorIdx']=self.PrecursorIdx 
         ms1row['Overlap']=hitct
         ms1row['NeutralMass']=peak.neutral_mass
         ms1row['Charge']=peak.charge
@@ -287,31 +287,31 @@ class Trawler:
         ms1row['GPID']=hit
         ms1row.append()
     
-    def CheckMSTargetsSub(self,roundedobj,peak):
-        tempids=roundedobj.RoundedTargetIDs(peak.neutral_mass)
+    def CheckMSTargetsSub(self,roundedobj,peakmass):
+        tempids=roundedobj.RoundedTargetIDs(peakmass)
         if len(tempids)>0:
             temptarg=roundedobj.ReducedTarget(tempids)
-            hits=roundedobj.BoundIndex(peak.neutral_mass,temptarg)
+            hits=self.targetlist.BoundIndex(peakmass,temptarg)
         else:
             hits=[]
         return hits
     
     def CheckMS1Targets(self,scan,peak):
-        hits=self.CheckMSTargetsSub(self.targetlist.dfMS1Objects,peak)
+        hits=self.CheckMSTargetsSub(self.targetlist.dfMS1Objects,peak.neutral_mass)
         if len(hits)>0:
             for hit in hits:
-                self.MS1RowCollect(scan,peak,hit)
+                self.MS1RowCollect(scan,peak,hit,len(hits))
                 self.ms1counter+=1
     
     def CheckMS2Targets(self,prod,peak,prehits):
-        hits=self.CheckMSTargetsSub(self.targetlist.dfMS2Objects,peak)
+        hits=self.CheckMSTargetsSub(self.targetlist.dfMS2Objects,peak.neutral_mass)
         if len(hits)>0:
             for hit in hits:
                 for prehit in prehits:
-                   self.MS2RowCollect(prod,peak,hit,prehit)
+                   self.MS2RowCollect(prod,peak,hit,prehit,len(hits))
                    self.ms2counter+=1
     
-    def ProductScanChecker(self,prod,ms2counter):
+    def ProductScanChecker(self,prod):
         if prod.precursor_information.orphan | prod.precursor_information.orphan:
             prehits=[0]
         else:
@@ -319,7 +319,7 @@ class Trawler:
             if len(prehits)==0:
                 prehits=[0]
         for peak in prod.deconvoluted_peak_set:
-            self.CheckMS2Targets(peak,prehits,ms2counter)
+            self.CheckMS2Targets(prod,peak,prehits)
         self.ProductIdx+=1
         
     def Trawling(self):
@@ -332,7 +332,7 @@ class Trawler:
     def Scooper(self,scan):
         if self.collect_allMS1: 
             for peak in scan.precursor.deconvoluted_peak_set:    
-                self.CheckMS1Targets(peak)                
+                self.CheckMS1Targets(scan,peak)                
         for prod in scan.products:
             self.ProductScanChecker(prod)
         if self.ms1counter>=200:
