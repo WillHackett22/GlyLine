@@ -213,7 +213,7 @@ class GPIonAssociation(IonMetaDataTable):
 #the meta data are stored like this
 ## RunID | protein | Glycopeptide | scan_id | time | neutralmass | mass_accuracy | charge | ms2_score | q_value
 class PSMMetaDataTable(DataTable):
-    def __init__(self,hdf5file,filelist=None,runidentifier=None,index=['scan_id'],PSMkey='PrecursorMetaData',GPIkey='GlyIonAssoc'):
+    def __init__(self,hdf5file,filelist=None,runidentifier=None,index=['scan_id'],PSMkey='PrecursorMetaData',GPIkey='GlyIonAssoc',adductdict=None,massdict=None,adductmultiplicity=1):
         super().__init__(hdf5file)
         self.files=filelist
         self.runIDs=runidentifier
@@ -221,6 +221,14 @@ class PSMMetaDataTable(DataTable):
         self.key=PSMkey
         self.unikey=PSMkey+'Unique'
         self.GPIkey=GPIkey
+        #adductdict has format: adductlist={'adductname':{'H':1,'N':1,'C':1,'O':1,'Na':1,'S':1,'K':1}} 
+        # where adductname has chemical formula HNCONaSK
+        #eg: adductlist={'ammonium':{'H':4,'N':1},'sodium':{'Na':1},'waterloss':{'H':-2,'O':-1}}
+        self.adductlist=adductdict
+        if massdict is None:
+            massdict={'H':1.00797,'O':15.9994,'N':14.0067,'C':12,'Na':22.98977,'K':39.0983,'S':32.05}
+        self.massdict=massdict
+        self.adductmultiplicity=adductmultiplicity
         
         
     def PSMMetadata(self,dfPSM,runID):
@@ -268,6 +276,44 @@ class PSMMetaDataTable(DataTable):
         unidx=[i for i,x in enumerate(dfPSMMetaMaster.duplicated(['GPID'])) if x==False ]
         self.dfMS1Unique=dfPSMMetaMaster.iloc[unidx,]
         self.dfMS1Unique=self.dfMS1Unique.set_index('GPID')
+        
+    def AdductAdder(idx,adduct,addict,massdict,basedf):
+        tempdf=pd.DataFrame(None,columns=['GPID','neutralmass','adducts','AddID'])
+        tempdf['adducts']=[adduct]*basedf.shape[0]
+        tempdf['GPID']=basedf['GPID'].tolist()
+        mshift=0
+        for j in addict[adduct]:
+            mshift+=addict[adduct][j]*massdict[j]
+        tempdf['neutralmass']=[tmass+mshift for tmass in basedf['neutralmass'].tolist()]
+        return tempdf
+    
+    def AdductionListMaker(self,adductlist,massdict,adductmultiplicity=3):
+        targetsbase=self.dfMS1Unique
+        adducteddf=pd.DataFrame(None,columns=['GPID','neutralmass','adducts','AddID'])
+        adducteddf['GPID']=targetsbase.index.tolist()
+        adducteddf['neutralmass']=targetsbase['neutralmass'].tolist()
+        adducteddf['adducts']=['None']*targetsbase.shape[0]
+        adducts=list(adductlist)
+        for idx,ad in enumerate(adducts):
+            tempdf=AdductAdder(idx,ad,adductlist,massdict,targetsbase)
+            adducteddf=pd.concat([adducteddf,tempdf])
+            if adductmultiplicity>=2:
+                combo=list(range(idx,len(adducts)))
+                if len(combo)>0:
+                    for c in combo:
+                        adc=adducts[c]
+                        subdf=AdductAdder(c,adc,adductlist,massdict,tempdf)
+                        adducteddf=pd.concat([adducteddf,subdf])
+                        if adductmultiplicity>2:
+                           combotri=list(range(c,len(adducts)))
+                           if len(combotri)>0:
+                               for t in combotri:
+                                   adc=adducts[t]
+                                   subsubdf=AdductAdder(t,adc,adductlist,massdict,subdf)
+                                   adducteddf=pd.concat([adducteddf,subsubdf])
+        adducteddf['AddID']=list(range(adducteddf.shape[0]))
+        adducteddf=adducteddf.set_index(['AddID'])
+        return adducteddf
         
     def ListWriter(self):
         self.dfPSMMetaMaster.to_hdf(self.h5file,key=self.key,mode='a')
