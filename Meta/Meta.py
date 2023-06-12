@@ -104,26 +104,14 @@ class OverlappingInformation():
             self.stubcoreglys=stubcoreglys
         self.dfIon=dfIonMetaUnique
     
-    def GlycanIonGrouper(self):
-        glycanfrags=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan','fragment_name'].tolist()
-        glycantranslator=pd.DataFrame(None,columns=['fragment_name','simplified','IonID'])
-        glycantranslator['fragment_name']=glycanfrags
-        glycantranslator['simplified']=[re.sub("-.*","",s) for s in glycanfrags]
-        glycantranslator['IonID']=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan'].index.tolist()
-        glycangroups=glycantranslator.groupby('simplified')['IonID'].apply(list).reset_index()
-        glycangroups=glycangroups.set_index('simplified')
-        return glycangroups
-    
     def main(self):
-        presentcore=[cgly for cgly in coreglys if cgly in glycangroups.index.values]
-        if stubcoreglys is None:
-            stubcoreglys=['HexNAc','HexNAc1','HexNAc2','2HexNAc','Hex1HexNAc2','Hex2HexNAc2','Hex3HexNAc2']
-        dfIonMetaTemp=gpiobj.dfIonMetaMaster
-        unipeps=dfIonMetaTemp['peptide'].unique().tolist()
+        glycangroups=self.GlycanIonGrouper()
+        presentcore=[cgly for cgly in self.coreglys if cgly in glycangroups.index.values]
+        unipeps=self.dfIon['peptide'].unique().tolist()
         for pep in unipeps:
             unipepset, unipepfrags=UniquePeptideGrouper(gpiobj,pep)
             unistubset,unistubfrags=UniqueStubGrouper(gpiobj,pep,stubcoreglys)
-            subgps=dfIonMetaTemp.loc[dfIonMetaTemp['peptide']==pep,'glycopeptide'].unique().tolist()
+            subgps=self.dfIon.loc[self.dfIon['peptide']==pep,'glycopeptide'].unique().tolist()
             for gp in subgps:
                 existpepset=ExistingSubset(dfIonMetaTemp,gp,'Peptide')
                 missingfrags=list(unipepset-existpepset)
@@ -143,6 +131,38 @@ class OverlappingInformation():
                 if len(missingfrags)>0:
                     dfIonMetaTemp=IonFragmentAdder(gpiobj,dfIonMetaTemp,missingfrags,gp,pep)
         return dfIonMetaTemp
+       
+    def GlycanIonGrouper(self):
+        glycanfrags=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan','fragment_name'].tolist()
+        glycantranslator=pd.DataFrame(None,columns=['fragment_name','simplified','IonID'])
+        glycantranslator['fragment_name']=glycanfrags
+        glycantranslator['simplified']=[re.sub("-.*","",s) for s in glycanfrags]
+        glycantranslator['IonID']=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan'].index.tolist()
+        glycangroups=glycantranslator.groupby('simplified')['IonID'].apply(list).reset_index()
+        glycangroups=glycangroups.set_index('simplified')
+        return glycangroups
+    
+    def IonFragmentAdder(self,missingfrags,gp,pep):
+        tempdf=self.dfIon.loc[missingfrags].reset_index()
+        tempdf['glycopeptide']=gp
+        tempdf['peptide']=pep
+        dfIonMetaTemp=pd.concat([dfIonMetaTemp,tempdf])
+        return dfIonMetaTemp
+    
+    def UniquePeptideGrouper(self,pep):
+        unipepids=self.dfIon.loc[(self.dfIon['peptide']==pep) & (self.dfIon['fragment_type']=='Peptide')].index.values.tolist()
+        unipepfrags=self.dfIon.loc[unipepids,'fragment_name']
+        return set(unipepids), unipepfrags
+
+    def UniqueStubGrouper(self,pep):
+        stubfrags=self.dfIon.loc[(self.dfIon['fragment_type']=='Stub') & (self.dfIon['peptide']==pep),'fragment_name'].tolist()
+        stubids=self.dfIon.loc[(self.dfIon['fragment_type']=='Stub') & (self.dfIon['peptide']==pep)].index.tolist()
+        stubfragid=[stubids[i] for i,s in enumerate(stubfrags) if re.sub(".*\\+","",s) in self.stubcoreglys]
+        unistubfrags=self.dfIon.loc[stubfragid,'fragment_name']
+        return set(stubfragid), unistubfrags
+    
+    def ExistingSubset(self,gp,targetiontype):
+        return set(self.dfIon.loc[(self.dfIon['glycopeptide']==gp) & (self.dfIon['fragment_type']==targetiontype),'IonID'])
     
 ### This is the class for the glycopeptide to ion association table and viceversa
 class GPIonAssociation(IonMetaDataTable):
