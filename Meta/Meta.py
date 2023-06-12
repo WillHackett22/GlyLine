@@ -109,16 +109,16 @@ class OverlappingInformation():
         presentcore=[cgly for cgly in self.coreglys if cgly in glycangroups.index.values]
         unipeps=self.dfIon['peptide'].unique().tolist()
         for pep in unipeps:
-            unipepset, unipepfrags=UniquePeptideGrouper(gpiobj,pep)
-            unistubset,unistubfrags=UniqueStubGrouper(gpiobj,pep,stubcoreglys)
+            unipepset, unipepfrags=self.UniquePeptideGrouper(pep)
+            unistubset,unistubfrags=self.UniqueStubGrouper(pep)
             subgps=self.dfIon.loc[self.dfIon['peptide']==pep,'glycopeptide'].unique().tolist()
             for gp in subgps:
-                existpepset=ExistingSubset(dfIonMetaTemp,gp,'Peptide')
+                existpepset=self.ExistingSubset(gp,'Peptide')
                 missingfrags=list(unipepset-existpepset)
-                existstubset=ExistingSubset(dfIonMetaTemp,gp,'Stub')
+                existstubset=self.ExistingSubset(gp,'Stub')
                 missingfrags=missingfrags+list(unistubset-existstubset)
-                gfs=dfIonMetaTemp.loc[(dfIonMetaTemp['glycopeptide']==gp) & (dfIonMetaTemp['fragment_type']=='Glycan'),'fragment_name'].unique().tolist()    
-                existglyset=ExistingSubset(dfIonMetaTemp,gp,'Glycan')
+                gfs=self.dfIon.loc[(self.dfIon['glycopeptide']==gp) & (self.dfIon['fragment_type']=='Glycan'),'fragment_name'].unique().tolist()    
+                existglyset=self.ExistingSubset(gp,'Glycan')
                 gfsimp=np.unique([re.sub("-.*","",s) for s in gfs]+presentcore).tolist()
                 if 'Fuc' in gp:
                     gfsimp=gfsimp+['Fuc']
@@ -129,8 +129,7 @@ class OverlappingInformation():
                     gidlist=gidlist+glycangroups.loc[g].tolist()[0]
                 missingfrags=missingfrags+list(set(gidlist)-existglyset)
                 if len(missingfrags)>0:
-                    dfIonMetaTemp=IonFragmentAdder(gpiobj,dfIonMetaTemp,missingfrags,gp,pep)
-        return dfIonMetaTemp
+                    self.dfIon=self.IonFragmentAdder(missingfrags,gp,pep)
        
     def GlycanIonGrouper(self):
         glycanfrags=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan','fragment_name'].tolist()
@@ -146,8 +145,7 @@ class OverlappingInformation():
         tempdf=self.dfIon.loc[missingfrags].reset_index()
         tempdf['glycopeptide']=gp
         tempdf['peptide']=pep
-        dfIonMetaTemp=pd.concat([dfIonMetaTemp,tempdf])
-        return dfIonMetaTemp
+        self.dfIon=pd.concat([self.dfIon,tempdf])
     
     def UniquePeptideGrouper(self,pep):
         unipepids=self.dfIon.loc[(self.dfIon['peptide']==pep) & (self.dfIon['fragment_type']=='Peptide')].index.values.tolist()
