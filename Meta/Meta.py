@@ -75,6 +75,7 @@ class IonMetaDataTable(DataTable):
         StubMetaIDed=pd.merge(StubGroups,StubMeta,on=['peptide','fragment_name'])
         # bring it all together
         dfIonMetaMaster=pd.concat([StubMetaIDed,PepMetaIDed,GlyMetaIDed])
+        dfIonMetaMaster=dfIonMetaMaster.reset_index()
         #getting the unique values for target list
         unidx=[i for i,x in enumerate(dfIonMetaMaster.duplicated(['IonID'])) if x==False]
         dfIonMetaUnique=dfIonMetaMaster.iloc[unidx,].reset_index()
@@ -93,7 +94,7 @@ class IonMetaDataTable(DataTable):
         self.dfIonMetaUnique=pd.read_hdf(self.h5file,key=self.unikey)
 
 class OverlappingInformation():
-    def __init__(self,dfIonMetaUnique,coreglys=None,stubcoreglys=None):
+    def __init__(self,dfIonMetaMaster,coreglys=None,stubcoreglys=None):
         if coreglys is None:
             self.coreglys=['HexNAc','HexNAcHexNAc','HexHexNAcHexNAc','HexHexHexNAcHexNAc','HexHexHexHexNAcHexNAc','Hex','HexHex','HexHexHex']
         else:
@@ -102,7 +103,7 @@ class OverlappingInformation():
             self.stubcoreglys=['HexNAc','HexNAc1','HexNAc2','2HexNAc','Hex1HexNAc2','Hex2HexNAc2','Hex3HexNAc2']
         else:
             self.stubcoreglys=stubcoreglys
-        self.dfIon=dfIonMetaUnique
+        self.dfIon=dfIonMetaMaster
     
     def main(self):
         glycangroups=self.GlycanIonGrouper()
@@ -132,6 +133,7 @@ class OverlappingInformation():
                     self.dfIon=self.IonFragmentAdder(missingfrags,gp,pep)
        
     def GlycanIonGrouper(self):
+        #this function collects oxonium ions and groups them by base glycan composition (eg ignores the -h2o etc)
         glycanfrags=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan','fragment_name'].tolist()
         glycantranslator=pd.DataFrame(None,columns=['fragment_name','simplified','IonID'])
         glycantranslator['fragment_name']=glycanfrags
@@ -142,24 +144,28 @@ class OverlappingInformation():
         return glycangroups
     
     def IonFragmentAdder(self,missingfrags,gp,pep):
+        #this function creates a dataframe of missingfrags, replaces the pertinent info, and adds it onto the ms2 unique ion list
         tempdf=self.dfIon.loc[missingfrags].reset_index()
         tempdf['glycopeptide']=gp
         tempdf['peptide']=pep
         self.dfIon=pd.concat([self.dfIon,tempdf])
     
     def UniquePeptideGrouper(self,pep):
-        unipepids=self.dfIon.loc[(self.dfIon['peptide']==pep) & (self.dfIon['fragment_type']=='Peptide')].index.values.tolist()
-        unipepfrags=self.dfIon.loc[unipepids,'fragment_name']
+        #get unique peptide frags by peptide backbone, give to all members of peptide backbone
+        unipepids=self.dfIon.loc[(self.dfIon['peptide']==pep) & (self.dfIon['fragment_type']=='Peptide'),'IonID'].tolist()
+        unipepfrags=self.dfIon.loc[(self.dfIon['peptide']==pep) & (self.dfIon['fragment_type']=='Peptide'),'fragment_name'].tolist()
         return set(unipepids), unipepfrags
 
     def UniqueStubGrouper(self,pep):
+        # get stub ions part of core, gve to all stub ions
         stubfrags=self.dfIon.loc[(self.dfIon['fragment_type']=='Stub') & (self.dfIon['peptide']==pep),'fragment_name'].tolist()
-        stubids=self.dfIon.loc[(self.dfIon['fragment_type']=='Stub') & (self.dfIon['peptide']==pep)].index.tolist()
+        stubids=self.dfIon.loc[(self.dfIon['fragment_type']=='Stub') & (self.dfIon['peptide']==pep),'IonID'].tolist()
         stubfragid=[stubids[i] for i,s in enumerate(stubfrags) if re.sub(".*\\+","",s) in self.stubcoreglys]
         unistubfrags=self.dfIon.loc[stubfragid,'fragment_name']
         return set(stubfragid), unistubfrags
     
     def ExistingSubset(self,gp,targetiontype):
+        # get existing subset of an ion type for a glycoeptide
         return set(self.dfIon.loc[(self.dfIon['glycopeptide']==gp) & (self.dfIon['fragment_type']==targetiontype),'IonID'])
     
 ### This is the class for the glycopeptide to ion association table and viceversa
