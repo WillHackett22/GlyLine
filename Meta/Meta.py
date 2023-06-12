@@ -1,6 +1,7 @@
 ##GlyLine Meta Data Classes GlyLine.Meta
 import pandas as pd
 import numpy as np
+import re
 from GlyLine.Helper import Helper
 
 class DataTable:
@@ -91,7 +92,58 @@ class IonMetaDataTable(DataTable):
         self.dfIonMetaMaster=pd.read_hdf(self.h5file, key=self.key)
         self.dfIonMetaUnique=pd.read_hdf(self.h5file,key=self.unikey)
 
-        
+class OverlappingInformation():
+    def __init__(self,dfIonMetaUnique,coreglys=None,stubcoreglys=None):
+        if coreglys is None:
+            self.coreglys=['HexNAc','HexNAcHexNAc','HexHexNAcHexNAc','HexHexHexNAcHexNAc','HexHexHexHexNAcHexNAc','Hex','HexHex','HexHexHex']
+        else:
+            self.coreglys=coreglys
+        if stubcoreglys is None:
+            self.stubcoreglys=['HexNAc','HexNAc1','HexNAc2','2HexNAc','Hex1HexNAc2','Hex2HexNAc2','Hex3HexNAc2']
+        else:
+            self.stubcoreglys=stubcoreglys
+        self.dfIon=dfIonMetaUnique
+    
+    def GlycanIonGrouper(self):
+        glycanfrags=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan','fragment_name'].tolist()
+        glycantranslator=pd.DataFrame(None,columns=['fragment_name','simplified','IonID'])
+        glycantranslator['fragment_name']=glycanfrags
+        glycantranslator['simplified']=[re.sub("-.*","",s) for s in glycanfrags]
+        glycantranslator['IonID']=self.dfIon.loc[self.dfIon['fragment_type']=='Glycan'].index.tolist()
+        glycangroups=glycantranslator.groupby('simplified')['IonID'].apply(list).reset_index()
+        glycangroups=glycangroups.set_index('simplified')
+        return glycangroups
+    
+    def main(self):
+        presentcore=[cgly for cgly in coreglys if cgly in glycangroups.index.values]
+        if stubcoreglys is None:
+            stubcoreglys=['HexNAc','HexNAc1','HexNAc2','2HexNAc','Hex1HexNAc2','Hex2HexNAc2','Hex3HexNAc2']
+        dfIonMetaTemp=gpiobj.dfIonMetaMaster
+        unipeps=dfIonMetaTemp['peptide'].unique().tolist()
+        for pep in unipeps:
+            unipepset, unipepfrags=UniquePeptideGrouper(gpiobj,pep)
+            unistubset,unistubfrags=UniqueStubGrouper(gpiobj,pep,stubcoreglys)
+            subgps=dfIonMetaTemp.loc[dfIonMetaTemp['peptide']==pep,'glycopeptide'].unique().tolist()
+            for gp in subgps:
+                existpepset=ExistingSubset(dfIonMetaTemp,gp,'Peptide')
+                missingfrags=list(unipepset-existpepset)
+                existstubset=ExistingSubset(dfIonMetaTemp,gp,'Stub')
+                missingfrags=missingfrags+list(unistubset-existstubset)
+                gfs=dfIonMetaTemp.loc[(dfIonMetaTemp['glycopeptide']==gp) & (dfIonMetaTemp['fragment_type']=='Glycan'),'fragment_name'].unique().tolist()    
+                existglyset=ExistingSubset(dfIonMetaTemp,gp,'Glycan')
+                gfsimp=np.unique([re.sub("-.*","",s) for s in gfs]+presentcore).tolist()
+                if 'Fuc' in gp:
+                    gfsimp=gfsimp+['Fuc']
+                if 'Neu5Ac' in gp:
+                    gfsimp=gfsimp+['Neu5Ac']
+                gidlist=[]
+                for g in gfsimp:
+                    gidlist=gidlist+glycangroups.loc[g].tolist()[0]
+                missingfrags=missingfrags+list(set(gidlist)-existglyset)
+                if len(missingfrags)>0:
+                    dfIonMetaTemp=IonFragmentAdder(gpiobj,dfIonMetaTemp,missingfrags,gp,pep)
+        return dfIonMetaTemp
+    
 ### This is the class for the glycopeptide to ion association table and viceversa
 class GPIonAssociation(IonMetaDataTable):
     def __init__(self,hdf5file,filelistspec=None,GPIkey='GlyIonAssoc',IGPkey='IonGlyAssoc'):
@@ -197,7 +249,7 @@ class PSMMetaDataTable(DataTable):
         self.dfPSMMetaMaster = dfPSMMetaMaster
         unidx=[i for i,x in enumerate(dfPSMMetaMaster.duplicated(['GPID'])) if x==False ]
         self.dfMS1Unique=dfPSMMetaMaster.iloc[unidx,]
-        self.dfMS1Unique.set_index('GPID')
+        self.dfMS1Unique=self.dfMS1Unique.set_index('GPID')
         
     def ListWriter(self):
         self.dfPSMMetaMaster.to_hdf(self.h5file,key=self.key,mode='a')

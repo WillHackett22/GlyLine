@@ -92,7 +92,7 @@ class IonTargetList:
     def __init__(self,msppm=[10,20]):
         self.msppm=msppm
         
-    def Maker(self,df,mslvl):
+    def Maker(self,df,mslvl,idval):
         l, u =PPMBounds(df['neutralmass'],self.msppm[mslvl])
         dfTargets=pd.DataFrame(data=None,columns=['upper','lower'])
         dfTargets['upper']=u
@@ -312,7 +312,7 @@ class Trawler:
                    self.ms2counter+=1
     
     def ProductScanChecker(self,prod):
-        if prod.precursor_information.orphan | prod.precursor_information.orphan:
+        if prod.precursor_information.orphan | prod.precursor_information.defaulted:
             prehits=[0]
         else:
             prehits=self.CheckMSTargetsSub(self.targetlist.dfMS1Objects,prod.precursor_information.neutral_mass)
