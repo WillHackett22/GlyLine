@@ -220,16 +220,16 @@ class PSMMetaDataTable(DataTable):
         self.index=index
         self.key=PSMkey
         self.unikey=PSMkey+'Unique'
+        self.addkey=PSMkey+'UniqueAdducted'
         self.GPIkey=GPIkey
-        #adductdict has format: adductlist={'adductname':{'H':1,'N':1,'C':1,'O':1,'Na':1,'S':1,'K':1}} 
+        #adductdict has format: adductdict={'adductname':{'H':1,'N':1,'C':1,'O':1,'Na':1,'S':1,'K':1}} 
         # where adductname has chemical formula HNCONaSK
-        #eg: adductlist={'ammonium':{'H':4,'N':1},'sodium':{'Na':1},'waterloss':{'H':-2,'O':-1}}
-        self.adductlist=adductdict
+        #eg: adductdict={'ammonium':{'H':4,'N':1},'sodium':{'Na':1},'waterloss':{'H':-2,'O':-1}}
+        self.adductdict=adductdict
         if massdict is None:
             massdict={'H':1.00797,'O':15.9994,'N':14.0067,'C':12,'Na':22.98977,'K':39.0983,'S':32.05}
         self.massdict=massdict
         self.adductmultiplicity=adductmultiplicity
-        
         
     def PSMMetadata(self,dfPSM,runID):
         dfPSMMeta=pd.DataFrame(data=None,
@@ -276,40 +276,45 @@ class PSMMetaDataTable(DataTable):
         unidx=[i for i,x in enumerate(dfPSMMetaMaster.duplicated(['GPID'])) if x==False ]
         self.dfMS1Unique=dfPSMMetaMaster.iloc[unidx,]
         self.dfMS1Unique=self.dfMS1Unique.set_index('GPID')
+        self.dfMS1Adducted=self.AdductionListMaker()
         
-    def AdductAdder(idx,adduct,addict,massdict,basedf):
+    def AdductAdder(self,adduct,basedf):
         tempdf=pd.DataFrame(None,columns=['GPID','neutralmass','adducts','AddID'])
-        tempdf['adducts']=[adduct]*basedf.shape[0]
-        tempdf['GPID']=basedf['GPID'].tolist()
+        if basedf['adducts'].iloc[0]=='None':
+            tempdf['adducts']=[adduct]*basedf.shape[0]
+        else:
+            tempdf['adducts']=basedf['adducts']+','+adduct
+        tempdf['GPID']=basedf.index.values
         mshift=0
-        for j in addict[adduct]:
-            mshift+=addict[adduct][j]*massdict[j]
+        for j in self.adductdict[adduct]:
+            mshift+=self.adductdict[adduct][j]*self.massdict[j]
         tempdf['neutralmass']=[tmass+mshift for tmass in basedf['neutralmass'].tolist()]
         return tempdf
     
-    def AdductionListMaker(self,adductlist,massdict,adductmultiplicity=3):
+    def AdductionListMaker(self):
         targetsbase=self.dfMS1Unique
         adducteddf=pd.DataFrame(None,columns=['GPID','neutralmass','adducts','AddID'])
         adducteddf['GPID']=targetsbase.index.tolist()
         adducteddf['neutralmass']=targetsbase['neutralmass'].tolist()
         adducteddf['adducts']=['None']*targetsbase.shape[0]
-        adducts=list(adductlist)
+        basedf=adducteddf.copy()
+        adducts=list(self.adductdict)
         for idx,ad in enumerate(adducts):
-            tempdf=AdductAdder(idx,ad,adductlist,massdict,targetsbase)
+            tempdf=self.AdductAdder(ad,basedf)
             adducteddf=pd.concat([adducteddf,tempdf])
-            if adductmultiplicity>=2:
+            if self.adductmultiplicity>=2:
                 combo=list(range(idx,len(adducts)))
                 if len(combo)>0:
                     for c in combo:
                         adc=adducts[c]
-                        subdf=AdductAdder(c,adc,adductlist,massdict,tempdf)
+                        subdf=self.AdductAdder(adc,tempdf)
                         adducteddf=pd.concat([adducteddf,subdf])
-                        if adductmultiplicity>2:
+                        if self.adductmultiplicity>2:
                            combotri=list(range(c,len(adducts)))
                            if len(combotri)>0:
                                for t in combotri:
                                    adc=adducts[t]
-                                   subsubdf=AdductAdder(t,adc,adductlist,massdict,subdf)
+                                   subsubdf=self.AdductAdder(adc,subdf)
                                    adducteddf=pd.concat([adducteddf,subsubdf])
         adducteddf['AddID']=list(range(adducteddf.shape[0]))
         adducteddf=adducteddf.set_index(['AddID'])
@@ -318,11 +323,13 @@ class PSMMetaDataTable(DataTable):
     def ListWriter(self):
         self.dfPSMMetaMaster.to_hdf(self.h5file,key=self.key,mode='a')
         self.dfMS1Unique.to_hdf(self.h5file,key=self.unikey,mode='a')
+        self.dfMS1Adducted.to_hdf(self.h5file,key=self.addkey,mode='a')
     
     def ListReader(self,key1=None):
         if key1==None:
             self.dfPSMMetaMaster=pd.read_hdf(self.h5file, self.key)
             self.dfMS1Unique=pd.read_hdf(self.h5file, self.unikey)
+            self.dfMS1Adducted=pd.read_hdf(self.h5file, self.addkey)
         else:
             self.dfGPIonAssoc=pd.read_hdf(self.h5file, key=key1)
         
