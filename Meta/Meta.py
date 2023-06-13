@@ -108,14 +108,20 @@ class OverlappingInformation():
         self.dfIonUnique=gpiobj.dfIonMetaUnique
     
     def main(self):
+        #get groups of oxonium ions
         glycangroups=self.GlycanIonGrouper()
+        #check which of those are in the universal glycans
         presentcore=[cgly for cgly in self.coreglys if cgly in glycangroups.index.values]
+        #get all the peptide backbones
         unipeps=self.dfIon['peptide'].unique().tolist()
         for pep in unipeps:
+            #for each peptide get pep fragments and core stub ions
             unipepset, unipepfrags=self.UniquePeptideGrouper(pep)
             unistubset,unistubfrags=self.UniqueStubGrouper(pep)
+            #get all gps for a pep backbone
             subgps=self.dfIon.loc[self.dfIon['peptide']==pep,'glycopeptide'].unique().tolist()
             for gp in subgps:
+                # for each gp get difference between existing ions and implied ions
                 existpepset=self.ExistingSubset(gp,'Peptide')
                 missingfrags=list(unipepset-existpepset)
                 existstubset=self.ExistingSubset(gp,'Stub')
@@ -123,6 +129,7 @@ class OverlappingInformation():
                 gfs=self.dfIon.loc[(self.dfIon['glycopeptide']==gp) & (self.dfIon['fragment_type']=='Glycan'),'fragment_name'].unique().tolist()    
                 existglyset=self.ExistingSubset(gp,'Glycan')
                 gfsimp=np.unique([re.sub("-.*","",s) for s in gfs]+presentcore).tolist()
+                # add fuc and neu5ac to pertinent gps
                 if 'Fuc' in gp:
                     gfsimp=gfsimp+['Fuc']
                 if 'Neu5Ac' in gp:
@@ -131,6 +138,7 @@ class OverlappingInformation():
                 for g in gfsimp:
                     gidlist=gidlist+np.unique(glycangroups.loc[g].tolist()[0]).tolist()
                 missingfrags=missingfrags+list(set(gidlist)-existglyset)
+                #update dfIon aka dfIonMetaMaster
                 if len(missingfrags)>0:
                     self.IonFragmentAdder(missingfrags,gp,pep)
        
@@ -153,6 +161,7 @@ class OverlappingInformation():
         tempdf['peptide']=pep
         self.dfIon=pd.concat([self.dfIon,tempdf])
         self.dfIon=self.dfIon.reset_index()
+        self.dfIon=self.dfIon.drop(['index'],axis=1)
             
     def UniquePeptideGrouper(self,pep):
         #get unique peptide frags by peptide backbone, give to all members of peptide backbone
@@ -180,7 +189,6 @@ class GPIonAssociation(IonMetaDataTable):
         self.GPIkey=GPIkey
         self.IGPkey=IGPkey
         
-    
     def GP_Ion_Data(self):
         if hasattr(self,'dfIonMetaMaster')==False:
             self.ListReader()
