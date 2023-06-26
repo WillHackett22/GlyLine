@@ -5,11 +5,8 @@
 import pandas as pd
 import numpy as np
 import tables as tb
-import ms_deisotope
+import json
 import ms_deisotope.output.mzml as msdomzml
-from GlyLine.Meta import Meta
-
-
 
 #let's iterate through things safely
 def safeNext(source):
@@ -134,6 +131,53 @@ class IonTargetList:
         ID=self.dfMS1Targets.index[np.where((self.dfMS1Targets['upper']>=peakvalue) & (self.dfMS1Targets['lower']<=peakvalue))].values
         return ID
             
+    
+#class of functions to be used in trawler to get the indexed data from json file
+class IndexedMSInfo:
+    def __init__(self,jsonfile,runID,h5file,key='IndexInfo',verbose=True):
+        self.jsonfile=jsonfile
+        self.verbose=verbose
+        self.runID=runID
+        self.h5file=h5file
+        f=open(jsonfile)
+        self.jdata=json.load(f)
+        
+    def MS1Info(self):
+        ms1idxdf=pd.DataFrame(None,columns=['PrecursorIdx','scan_time','scan_id','prodpeaks'])
+        ms1idxdf['PrecursorIdx']=list(range(len(self.jdata['ms1_ids'])))
+        scan_times=[]
+        scan_ids=[]
+        prodpeaks=[]
+        for jv in self.jdata['ms1_ids']:
+            scan_ids=scan_ids+[jv[0]]
+            scan_times=scan_times+[jv[1]['scan_time']]
+            prodpeaks=prodpeaks+[jv[1]['msms_peaks']]
+        ms1idxdf['scan_time']=scan_times
+        ms1idxdf['scan_id']=scan_ids
+        ms1idxdf['prodpeaks']=prodpeaks
+        ms1idxdf.set_index('PrecursorIdx')
+        if self.verbose:
+            self.MS1Data=ms1idxdf
+    
+    def MS2Info(self):
+        ms2idxdf=pd.DataFrame(None,columns=['ProductIdx','scan_time','scan_id','Pre_scan_id'])
+        ms2idxdf['ProductIdx']=list(range(len(self.jdata['msn_ids'])))
+        scan_times=[]
+        scan_ids=[]
+        pre_scan_ids=[]
+        for jv in self.jdata['msn_ids']:
+            scan_ids=scan_ids+[jv[0]]
+            scan_times=scan_times+[jv[1]['scan_time']]
+            pre_scan_ids=pre_scan_ids+[jv[1]['precursor_scan_id']]
+        ms2idxdf['scan_time']=scan_times
+        ms2idxdf['scan_id']=scan_ids
+        ms2idxdf['Pre_scan_id']=pre_scan_ids
+        ms2idxdf.set_index('ProductIdx')
+        if self.verbose:
+            self.MS2Data=ms2idxdf
+        
+    def SaveData(self):
+        return 
 #describe the data structure that trawler writes to
 # DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx
 # DIA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx | acq_range

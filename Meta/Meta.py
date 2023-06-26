@@ -280,6 +280,7 @@ class PSMMetaDataTable(DataTable):
         
         ix=[i for i,x in enumerate(dfPSMMetaMasterTemp.duplicated(['glycopeptide','RunID'])) if x==False]
         dfPSMMetaMaster=dfPSMMetaMasterTemp.loc[ix,]
+        dfPSMMetaMaster['neutralmass']=dfPSMMetaMaster['neutralmass']+dfPSMMetaMaster['neutralmass']*dfPSMMetaMaster['mass_accuracy']
         if (hasattr(self,'dfGPIonAssoc')==False):
             self.ListReader(self.GPIkey)
         dl=dfPSMMetaMaster.shape[0]
@@ -295,7 +296,10 @@ class PSMMetaDataTable(DataTable):
         unidx=[i for i,x in enumerate(dfPSMMetaMaster.duplicated(['GPID'])) if x==False ]
         self.dfMS1Unique=dfPSMMetaMaster.iloc[unidx,]
         self.dfMS1Unique=self.dfMS1Unique.set_index('GPID')
-        self.dfMS1Adducted=self.AdductionListMaker()
+        if self.adductdict is not None:
+            self.dfMS1Adducted=self.AdductionListMaker()
+        else:
+            self.dfMS1Adducted=self.dfMS1Unique
         
     def AdductAdder(self,adduct,basedf):
         tempdf=pd.DataFrame(None,columns=['GPID','neutralmass','adducts','AddID'])
@@ -351,4 +355,3 @@ class PSMMetaDataTable(DataTable):
             self.dfMS1Adducted=pd.read_hdf(self.h5file, self.addkey)
         else:
             self.dfGPIonAssoc=pd.read_hdf(self.h5file, key=key1)
-        
