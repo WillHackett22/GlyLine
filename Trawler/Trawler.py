@@ -332,23 +332,17 @@ class Trawler:
     
     def MS2RowCollect(self,prod,peak,hit,prehit,hitct):
         ms2row=self.ms2table.row
-        ms2row['RunID']=self.runID
         ms2row['ProductIdx']=self.ProductIdx
-        ms2row['PrecursorIdx']=self.PrecursorIdx
-        ms2row['Time']=prod.scan_time.real
         ms2row['Overlap']=hitct
         ms2row['NeutralMass']=peak.neutral_mass
         ms2row['Charge']=peak.charge
         ms2row['Intensity']=peak.intensity.real
         ms2row['Decon']=peak.score
         ms2row['IonID']=hit
-        ms2row['GPID']=prehit
         ms2row.append()
     
     def MS1RowCollect(self,scan,peak,hit,hitct):
         ms1row=self.ms1table.row
-        ms1row['Time']=scan.precursor.scan_time.real
-        ms1row['RunID']=self.runID
         ms1row['PrecursorIdx']=self.PrecursorIdx 
         ms1row['Overlap']=hitct
         ms1row['NeutralMass']=peak.neutral_mass
