@@ -330,7 +330,7 @@ class Trawler:
             self.group2=self.h5connection.root.MS2
             self.ms2table=self.group2.MS2
     
-    def MS2RowCollect(self,prod,peak,hit,prehit,hitct):
+    def MS2RowCollect(self,prod,peak,hit,hitct):
         ms2row=self.ms2table.row
         ms2row['ProductIdx']=self.ProductIdx
         ms2row['Overlap']=hitct
@@ -372,9 +372,8 @@ class Trawler:
         hits=self.CheckMSTargetsSub(self.targetlist.dfMS2Objects,peak.neutral_mass)
         if len(hits)>0:
             for hit in hits:
-                for prehit in prehits:
-                   self.MS2RowCollect(prod,peak,hit,prehit,len(hits))
-                   self.ms2counter+=1
+                self.MS2RowCollect(prod,peak,hit,len(hits))
+                self.ms2counter+=1
     
     def ProductScanChecker(self,prod):
         if prod.precursor_information.orphan | prod.precursor_information.defaulted:
