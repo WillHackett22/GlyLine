@@ -372,7 +372,7 @@ class Trawler:
         hits=self.CheckMSTargetsSub(self.targetlist.dfMS2Objects,peak.neutral_mass)
         if len(hits)>0:
             for hit in hits:
-                self.MS2RowCollect(prod,peak,hit,len(hits))
+                self.MS2RowCollect(prod,peak,hit,hitct=len(hits))
                 self.ms2counter+=1
     
     def ProductScanChecker(self,prod):
