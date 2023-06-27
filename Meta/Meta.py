@@ -280,6 +280,7 @@ class PSMMetaDataTable(DataTable):
         
         ix=[i for i,x in enumerate(dfPSMMetaMasterTemp.duplicated(['glycopeptide','RunID'])) if x==False]
         dfPSMMetaMaster=dfPSMMetaMasterTemp.loc[ix,]
+        dfPSMMetaMaster['obs_neutralmass']=dfPSMMetaMaster['neutralmass'].tolist()
         dfPSMMetaMaster['neutralmass']=dfPSMMetaMaster['neutralmass']+dfPSMMetaMaster['neutralmass']*dfPSMMetaMaster['mass_accuracy']
         if (hasattr(self,'dfGPIonAssoc')==False):
             self.ListReader(self.GPIkey)
