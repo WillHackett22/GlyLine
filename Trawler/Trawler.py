@@ -144,18 +144,15 @@ class IndexedMSInfo:
         self.jdata=json.load(f)
         
     def MS1Info(self):
-        ms1idxdf=pd.DataFrame(None,columns=['PrecursorIdx','scan_time','scan_id','prodpeaks'])
+        ms1idxdf=pd.DataFrame(None,columns=['PrecursorIdx','scan_time','scan_id'])
         ms1idxdf['PrecursorIdx']=list(range(len(self.jdata['ms1_ids'])))
         scan_times=[]
         scan_ids=[]
-        prodpeaks=[]
         for jv in self.jdata['ms1_ids']:
             scan_ids=scan_ids+[jv[0]]
             scan_times=scan_times+[jv[1]['scan_time']]
-            prodpeaks=prodpeaks+[jv[1]['msms_peaks']]
         ms1idxdf['scan_time']=scan_times
         ms1idxdf['scan_id']=scan_ids
-        ms1idxdf['prodpeaks']=prodpeaks
         ms1idxdf=ms1idxdf.set_index('PrecursorIdx')
         if self.verbose:
             self.MS1Data=ms1idxdf
@@ -175,12 +172,25 @@ class IndexedMSInfo:
         ms2idxdf['scan_id']=scan_ids
         ms2idxdf['Pre_scan_id']=pre_scan_ids
         ms2idxdf=ms2idxdf.set_index('ProductIdx')
+        ms2idxdf['PrecursorIdx']=[None]*ms2idxdf.shape[0]
+        for j in self.MS1Data.index.tolist():
+            ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         if self.verbose:
             self.MS2Data=ms2idxdf
         ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
         
-    def SaveData(self):
-        return 
+    def main(self):
+        try:
+            self.MS1Data=pd.read_hdf(self.h5file,self.idxkey+'_MS1')
+        except:
+            self.MS1Info()
+        try:
+            self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
+        except:
+            self.MS2Info()
+
+            
+        
 #describe the data structure that trawler writes to
 # DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx
 # DIA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx | acq_range
