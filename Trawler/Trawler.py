@@ -239,36 +239,6 @@ class PrecursorPeakData(tb.IsDescription):
     GPID = tb.Int32Col()
     Overlap = tb.Int8Col()    
     
-# ms1_deconvolution_args = {
-#             "scorer": ms_deisotope.scoring.PenalizedMSDeconVFitter(score_threshold, isotopic_strictness),
-#             "max_missed_peaks": missed_peaks,
-#             "averagine": averagine,
-#             "truncate_after": workflow.SampleConsumer.MS1_ISOTOPIC_PATTERN_WIDTH,
-#             "ignore_below": workflow.SampleConsumer.MS1_IGNORE_BELOW,
-#             "deconvoluter_type": ms1_deconvoluter_type,
-#             "use_quick_charge": True
-#         }
-# default_glycresoft_ms1_deconvolution_args = {
-#             "scorer": ms_deisotope.scoring.PenalizedMSDeconVFitter(20, isotopic_strictness),
-#             "max_missed_peaks": 3,
-#             "averagine": ms_deisotope.averagine.glycan,
-#             "truncate_after": workflow.SampleConsumer.MS1_ISOTOPIC_PATTERN_WIDTH,
-#             "ignore_below": workflow.SampleConsumer.MS1_IGNORE_BELOW,
-#             "deconvoluter_type": ms1_deconvoluter_type,
-#             "use_quick_charge": True
-#         }
-# preferred_glycresoft_ms1_deconvolution_args = {
-#             "scorer": ms_deisotope.scoring.PenalizedMSDeconVFitter(score_threshold, isotopic_strictness),
-#             "max_missed_peaks": missed_peaks,
-#             "averagine": averagine,
-#             "truncate_after": workflow.SampleConsumer.MS1_ISOTOPIC_PATTERN_WIDTH,
-#             "ignore_below": workflow.SampleConsumer.MS1_IGNORE_BELOW,
-#             "deconvoluter_type": ms1_deconvoluter_type,
-#             "use_quick_charge": True
-#         }
-
-
-
 #this class will go through 1 mzML file
 class Trawler:
     def __init__(self,mzML,hdf5file,runidentifier=None,ms1key='MS1',ms2key='MS2',
@@ -399,3 +369,32 @@ class Trawler:
         if self.ms2counter>=200:
             self.ms2table.flush()
             self.ms2counter=0
+            
+# ms1_deconvolution_args = {
+#             "scorer": ms_deisotope.scoring.PenalizedMSDeconVFitter(score_threshold, isotopic_strictness),
+#             "max_missed_peaks": missed_peaks,
+#             "averagine": averagine,
+#             "truncate_after": workflow.SampleConsumer.MS1_ISOTOPIC_PATTERN_WIDTH,
+#             "ignore_below": workflow.SampleConsumer.MS1_IGNORE_BELOW,
+#             "deconvoluter_type": ms1_deconvoluter_type,
+#             "use_quick_charge": True
+#         }
+# default_glycresoft_ms1_deconvolution_args = {
+#             "scorer": ms_deisotope.scoring.PenalizedMSDeconVFitter(20, isotopic_strictness),
+#             "max_missed_peaks": 3,
+#             "averagine": ms_deisotope.averagine.glycan,
+#             "truncate_after": workflow.SampleConsumer.MS1_ISOTOPIC_PATTERN_WIDTH,
+#             "ignore_below": workflow.SampleConsumer.MS1_IGNORE_BELOW,
+#             "deconvoluter_type": ms1_deconvoluter_type,
+#             "use_quick_charge": True
+#         }
+# preferred_glycresoft_ms1_deconvolution_args = {
+#             "scorer": ms_deisotope.scoring.PenalizedMSDeconVFitter(score_threshold, isotopic_strictness),
+#             "max_missed_peaks": missed_peaks,
+#             "averagine": averagine,
+#             "truncate_after": workflow.SampleConsumer.MS1_ISOTOPIC_PATTERN_WIDTH,
+#             "ignore_below": workflow.SampleConsumer.MS1_IGNORE_BELOW,
+#             "deconvoluter_type": ms1_deconvoluter_type,
+#             "use_quick_charge": True
+#         }
+
