@@ -295,7 +295,10 @@ class PSMMetaDataTable(DataTable):
         dfPSMMetaMaster['GPID']=tempvec
         self.dfPSMMetaMaster = dfPSMMetaMaster
         unidx=[i for i,x in enumerate(dfPSMMetaMaster.duplicated(['GPID'])) if x==False ]
-        self.dfMS1Unique=dfPSMMetaMaster.iloc[unidx,]
+        self.dfMS1Unique=pd.DataFrame(None,columns=['glycopeptide','neutralmass','GPID'])
+        self.dfMS1Unique['glycopeptide']=dfPSMMetaMaster['glycopeptide'].iloc[unidx].tolist()
+        self.dfMS1Unique['neutralmass']=dfPSMMetaMaster['neutralmass'].iloc[unidx].tolist()
+        self.dfMS1Unique['GPID']=dfPSMMetaMaster['GPID'].iloc[unidx].tolist()
         self.dfMS1Unique=self.dfMS1Unique.set_index('GPID')
         if self.adductdict is not None:
             self.dfMS1Adducted=self.AdductionListMaker()

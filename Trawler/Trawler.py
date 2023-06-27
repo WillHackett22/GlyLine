@@ -182,9 +182,9 @@ class IndexedMSInfo:
                 temptarg=targetlist.dfMS1Objects.ReducedTarget(tempids)
                 hits=targetlist.BoundIndex(nmtemp,temptarg).tolist()
             else:
-                hits=[]
+                hits=[0]
             if len(hits)==0:
-                hits=[]
+                hits=[0]
             gpids=gpids+[hits]
         ms2idxdf['scan_time']=scan_times
         ms2idxdf['scan_id']=scan_ids
