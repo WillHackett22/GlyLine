@@ -89,7 +89,7 @@ class IonTargetList:
     def __init__(self,msppm=[10,20]):
         self.msppm=msppm
         
-    def Maker(self,df,mslvl,idval):
+    def Maker(self,df,mslvl):
         l, u =PPMBounds(df['neutralmass'],self.msppm[mslvl])
         dfTargets=pd.DataFrame(data=None,columns=['upper','lower'])
         dfTargets['upper']=u
@@ -158,38 +158,61 @@ class IndexedMSInfo:
             self.MS1Data=ms1idxdf
         ms1idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS1',mode='a')
     
-    def MS2Info(self):
-        ms2idxdf=pd.DataFrame(None,columns=['ProductIdx','scan_time','scan_id','Pre_scan_id'])
+    def MS2Info(self,targetlist):
+        ms2idxdf=pd.DataFrame(None,columns=['ProductIdx','scan_time','scan_id','neutralmass','coisolation','Pre_scan_id'])
         ms2idxdf['ProductIdx']=list(range(len(self.jdata['msn_ids'])))
         scan_times=[]
         scan_ids=[]
         pre_scan_ids=[]
+        nms=[]
+        gpids=[]
+        coi=[]
         for jv in self.jdata['msn_ids']:
             scan_ids=scan_ids+[jv[0]]
             scan_times=scan_times+[jv[1]['scan_time']]
             pre_scan_ids=pre_scan_ids+[jv[1]['precursor_scan_id']]
+            if len(jv[1]['coisolation'])>0:
+                coi=coi+[True]
+            else:
+                coi=coi+[False]
+            nmtemp=jv[1]['neutral_mass']
+            nms=nms+[nmtemp]
+            tempids=targetlist.dfMS1Objects.RoundedTargetIDs(nmtemp)
+            if len(tempids)>0:
+                temptarg=targetlist.dfMS1Objects.ReducedTarget(tempids)
+                hits=targetlist.BoundIndex(nmtemp,temptarg).tolist()
+            else:
+                hits=[]
+            if len(hits)==0:
+                hits=[]
+            gpids=gpids+[hits]
         ms2idxdf['scan_time']=scan_times
         ms2idxdf['scan_id']=scan_ids
         ms2idxdf['Pre_scan_id']=pre_scan_ids
+        ms2idxdf['neutralmass']=nms
         ms2idxdf=ms2idxdf.set_index('ProductIdx')
         ms2idxdf['PrecursorIdx']=[None]*ms2idxdf.shape[0]
+        ms2idxdf['GPID']=gpids
+        ms2idxdf['coisolation']=coi
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         if self.verbose:
             self.MS2Data=ms2idxdf
         ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
         
-    def main(self):
-        try:
-            self.MS1Data=pd.read_hdf(self.h5file,self.idxkey+'_MS1')
-        except:
+    def main(self,targetlist,force=False):
+        if force:
             self.MS1Info()
-        try:
-            self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
-        except:
-            self.MS2Info()
-
-            
+            self.MS2Info(targetlist)
+        else:
+            try:
+                self.MS1Data=pd.read_hdf(self.h5file,self.idxkey+'_MS1')
+            except:
+                self.MS1Info()
+            try:
+                self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
+            except:
+                self.MS2Info(MS1targetobj)
         
 #describe the data structure that trawler writes to
 # DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx
