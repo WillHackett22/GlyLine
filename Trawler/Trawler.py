@@ -212,7 +212,7 @@ class IndexedMSInfo:
             try:
                 self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
             except:
-                self.MS2Info(MS1targetobj)
+                self.MS2Info(targetlist)
         
 #describe the data structure that trawler writes to
 # DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx
@@ -296,13 +296,13 @@ class Trawler:
         self.ms1counter=0
         self.ms2counter=0
         self.collect_allMS1=collect_allMS1
-        self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
     
     def main(self,dfIonMetaObject,dfPSMMetaObject,msppm=[10,20]):
         self.IteratorGen()
         self.targetlist=IonTargetList(msppm)
         self.targetlist.MS2Maker(dfIonMetaObject)
         self.targetlist.MS1Maker(dfPSMMetaObject)
+        self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
         self.PrecursorTbMake()
         self.ProductTbMake()
         self.Trawling()
