@@ -206,11 +206,8 @@ class ProductPeakData(tb.IsDescription):
     ProductIdx = tb.Int32Col()
     
 #precursor data structure
-# runid | time | neutralmass | charge | intensity | decon | precursorid
-#precursorid= #MS1scan in run _ #acquisition in scanbunch: #MS1*100+#acq
+#new data recorded to account for indexeddata
 class PrecursorPeakData(tb.IsDescription):
-    RunID = tb.StringCol(16)
-    Time = tb.Float32Col()
     NeutralMass = tb.Float64Col()
     Charge = tb.Int8Col()
     Intensity = tb.Float64Col()
