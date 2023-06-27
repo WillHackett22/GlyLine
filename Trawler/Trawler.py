@@ -194,18 +194,16 @@ class IndexedMSInfo:
 #describe the data structure that trawler writes to
 # DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx
 # DIA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx | acq_range
+#new data recorded to account for indexeddata
 class ProductPeakData(tb.IsDescription):
     RunID = tb.StringCol(16)
     IonID = tb.Int32Col()
     Overlap = tb.Int8Col()
-    Time = tb.Float32Col()
     NeutralMass = tb.Float64Col()
     Charge = tb.Int8Col()
     Intensity = tb.Float64Col()
     Decon = tb.Float32Col()
-    PrecursorIdx = tb.Int32Col()
     ProductIdx = tb.Int32Col()
-    GPID = tb.Int32Col()
     
 #precursor data structure
 # runid | time | neutralmass | charge | intensity | decon | precursorid
