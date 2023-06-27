@@ -139,6 +139,7 @@ class IndexedMSInfo:
         self.verbose=verbose
         self.runID=runID
         self.h5file=h5file
+        self.idxkey=key+'_'+runID
         f=open(jsonfile)
         self.jdata=json.load(f)
         
@@ -155,9 +156,10 @@ class IndexedMSInfo:
         ms1idxdf['scan_time']=scan_times
         ms1idxdf['scan_id']=scan_ids
         ms1idxdf['prodpeaks']=prodpeaks
-        ms1idxdf.set_index('PrecursorIdx')
+        ms1idxdf=ms1idxdf.set_index('PrecursorIdx')
         if self.verbose:
             self.MS1Data=ms1idxdf
+        ms1idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS1',mode='a')
     
     def MS2Info(self):
         ms2idxdf=pd.DataFrame(None,columns=['ProductIdx','scan_time','scan_id','Pre_scan_id'])
@@ -172,9 +174,10 @@ class IndexedMSInfo:
         ms2idxdf['scan_time']=scan_times
         ms2idxdf['scan_id']=scan_ids
         ms2idxdf['Pre_scan_id']=pre_scan_ids
-        ms2idxdf.set_index('ProductIdx')
+        ms2idxdf=ms2idxdf.set_index('ProductIdx')
         if self.verbose:
             self.MS2Data=ms2idxdf
+        ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
         
     def SaveData(self):
         return 
@@ -194,12 +197,9 @@ class ProductPeakData(tb.IsDescription):
     ProductIdx = tb.Int32Col()
     GPID = tb.Int32Col()
     
-
-
 #precursor data structure
 # runid | time | neutralmass | charge | intensity | decon | precursorid
 #precursorid= #MS1scan in run _ #acquisition in scanbunch: #MS1*100+#acq
-
 class PrecursorPeakData(tb.IsDescription):
     RunID = tb.StringCol(16)
     Time = tb.Float32Col()
@@ -209,8 +209,7 @@ class PrecursorPeakData(tb.IsDescription):
     Decon = tb.Float32Col()
     PrecursorIdx = tb.Int32Col()
     GPID = tb.Int32Col()
-    Overlap = tb.Int8Col()
-    
+    Overlap = tb.Int8Col()    
     
 # ms1_deconvolution_args = {
 #             "scorer": ms_deisotope.scoring.PenalizedMSDeconVFitter(score_threshold, isotopic_strictness),
@@ -271,11 +270,11 @@ class Trawler:
         self.collect_allMS1=collect_allMS1
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
     
-    def main(self,dfIonMetaMaster,dfPSMMetaMaster,msppm=[10,20]):
+    def main(self,dfIonMetaObject,dfPSMMetaObject,msppm=[10,20]):
         self.IteratorGen()
         self.targetlist=IonTargetList(msppm)
-        self.targetlist.MS2Maker(dfIonMetaMaster)
-        self.targetlist.MS1Maker(dfPSMMetaMaster)
+        self.targetlist.MS2Maker(dfIonMetaObject)
+        self.targetlist.MS1Maker(dfPSMMetaObject)
         self.PrecursorTbMake()
         self.ProductTbMake()
         self.Trawling()
@@ -385,6 +384,3 @@ class Trawler:
         if self.ms2counter>=200:
             self.ms2table.flush()
             self.ms2counter=0
-            
-        
-        

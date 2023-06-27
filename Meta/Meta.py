@@ -300,7 +300,11 @@ class PSMMetaDataTable(DataTable):
         if self.adductdict is not None:
             self.dfMS1Adducted=self.AdductionListMaker()
         else:
-            self.dfMS1Adducted=self.dfMS1Unique
+            self.dfMS1Adducted=self.dfMS1Unique.copy()
+            self.dfMS1Adducted['GPID']=self.dfMS1Adducted.index.tolist()
+            self.dfMS1Adducted['AddID']=self.dfMS1Adducted.index.tolist()
+            self.dfMS1Adducted=self.dfMS1Adducted.set_index('AddID')
+            self.dfMS1Adducted['adducts']=['None']*self.dfMS1Adducted.shape[0]
         
     def AdductAdder(self,adduct,basedf):
         tempdf=pd.DataFrame(None,columns=['GPID','neutralmass','adducts','AddID'])
