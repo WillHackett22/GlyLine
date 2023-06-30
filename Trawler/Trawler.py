@@ -192,7 +192,7 @@ class IndexedMSInfo:
         ms2idxdf['neutralmass']=nms
         ms2idxdf=ms2idxdf.set_index('ProductIdx')
         ms2idxdf['PrecursorIdx']=[None]*ms2idxdf.shape[0]
-        ms2idxdf['GPID']=gpids
+        ms2idxdf['AddID']=gpids
         ms2idxdf['coisolation']=coi
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
@@ -227,6 +227,7 @@ class ProductPeakData(tb.IsDescription):
     Intensity = tb.Float64Col()
     Decon = tb.Float32Col()
     ProductIdx = tb.Int32Col()
+    PrecursorIdx = tb.Int32Col()
     
 #precursor data structure
 #new data recorded to account for indexeddata
@@ -303,6 +304,7 @@ class Trawler:
     def MS2RowCollect(self,prod,peak,hit,hitct):
         ms2row=self.ms2table.row
         ms2row['ProductIdx']=self.ProductIdx
+        ms2row['PrecursorIdx']=self.PrecursorIdx
         ms2row['Overlap']=hitct
         ms2row['NeutralMass']=peak.neutral_mass
         ms2row['Charge']=peak.charge
