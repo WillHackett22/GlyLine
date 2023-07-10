@@ -315,7 +315,7 @@ class PSMMetaDataTable(DataTable):
             tempdf['adducts']=[adduct]*basedf.shape[0]
         else:
             tempdf['adducts']=basedf['adducts']+','+adduct
-        tempdf['GPID']=basedf.index.values
+        tempdf['GPID']=basedf['GPID'].tolist()
         mshift=0
         for j in self.adductdict[adduct]:
             mshift+=self.adductdict[adduct][j]*self.massdict[j]

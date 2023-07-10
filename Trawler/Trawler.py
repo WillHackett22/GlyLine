@@ -237,7 +237,7 @@ class PrecursorPeakData(tb.IsDescription):
     Intensity = tb.Float64Col()
     Decon = tb.Float32Col()
     PrecursorIdx = tb.Int32Col()
-    GPID = tb.Int32Col()
+    AddID = tb.Int32Col()
     Overlap = tb.Int8Col()    
     
 #this class will go through 1 mzML file
@@ -321,7 +321,7 @@ class Trawler:
         ms1row['Charge']=peak.charge
         ms1row['Intensity']=peak.intensity.real
         ms1row['Decon']=peak.score
-        ms1row['GPID']=hit
+        ms1row['AddID']=hit
         ms1row.append()
     
     def CheckMSTargetsSub(self,roundedobj,peakmass):
