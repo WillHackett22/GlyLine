@@ -161,44 +161,43 @@ class IndexedMSInfo:
     def MS2Info(self,targetlist):
         ms2idxdf=pd.DataFrame(None,columns=['ProductIdx','scan_time','scan_id','neutralmass','coisolation','Pre_scan_id'])
         ms2idxdf['ProductIdx']=list(range(len(self.jdata['msn_ids'])))
-        scan_times=[]
-        scan_ids=[]
-        pre_scan_ids=[]
-        nms=[]
+        ms2idxdf['scan_time']=[x[1]['scan_time'] for x in self.jdata['msn_ids']]
+        ms2idxdf['scan_id']=[x[0] for x in self.jdata['msn_ids']]
+        ms2idxdf['Pre_scan_id']=[x[1]['precursor_scan_id'] for x in self.jdata['msn_ids']]
+        ms2idxdf['coisolation']=[(len(x[1]['coisolation'])>0) | ('.' in x[0]) for x in self.jdata['msn_ids']]
+        ms2idxdf['neutralmass']=[x[1]['neutral_mass'] for x in self.jdata['msn_ids']]
+        ms2gpdf=pd.DataFrame(None,columns=['ProductIdx','GPID','intensity'])
         gpids=[]
-        coi=[]
-        for jv in self.jdata['msn_ids']:
-            scan_ids=scan_ids+[jv[0]]
-            scan_times=scan_times+[jv[1]['scan_time']]
-            pre_scan_ids=pre_scan_ids+[jv[1]['precursor_scan_id']]
-            if len(jv[1]['coisolation'])>0:
-                coi=coi+[True]
+        prodidx=[]
+        intgp=[]
+        for idx,jv in enumerate(self.jdata['msn_ids']):
+            if jv[1]['intensity']>0:
+                nmtemp=ms2idxdf['neutralmass'].iloc[idx]
+                tempids=targetlist.dfMS1Objects.RoundedTargetIDs(nmtemp)
+                if len(tempids)>0:
+                    temptarg=targetlist.dfMS1Objects.ReducedTarget(tempids)
+                    hits=targetlist.BoundIndex(nmtemp,temptarg).tolist()
+                else:
+                    hits=[0]
+                if len(hits)==0:
+                    hits=[0]
+                for h in hits:
+                    gpids.append(h)
+                    prodidx.append(idx)
+                    intgp.append(jv[1]['intensity'])
             else:
-                coi=coi+[False]
-            nmtemp=jv[1]['neutral_mass']
-            nms=nms+[nmtemp]
-            tempids=targetlist.dfMS1Objects.RoundedTargetIDs(nmtemp)
-            if len(tempids)>0:
-                temptarg=targetlist.dfMS1Objects.ReducedTarget(tempids)
-                hits=targetlist.BoundIndex(nmtemp,temptarg).tolist()
-            else:
-                hits=[0]
-            if len(hits)==0:
-                hits=[0]
-            gpids=gpids+[hits]
-        ms2idxdf['scan_time']=scan_times
-        ms2idxdf['scan_id']=scan_ids
-        ms2idxdf['Pre_scan_id']=pre_scan_ids
-        ms2idxdf['neutralmass']=nms
-        ms2idxdf=ms2idxdf.set_index('ProductIdx')
-        ms2idxdf['PrecursorIdx']=[None]*ms2idxdf.shape[0]
-        ms2idxdf['AddID']=gpids
-        ms2idxdf['coisolation']=coi
+                gpids.append(0)
+                prodidx.append(idx)
+                intgp.append(0)
+        ms2gpdf['ProductIdx']=prodidx
+        ms2gpdf['GPID']=gpids
+        ms2gpdf['intensity']=intgp
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         if self.verbose:
             self.MS2Data=ms2idxdf
         ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
+        ms2gpdf.to_hdf(self.h5file,key=self.idxkey+'_MS2_GP',mode='a')
         
     def main(self,targetlist,force=False):
         if force:
