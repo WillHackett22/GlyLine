@@ -159,7 +159,7 @@ class IndexedMSInfo:
         ms1idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS1',mode='a')
     
     def MS2Info(self,targetlist):
-        ms2idxdf=pd.DataFrame(None,columns=['ProductIdx','scan_time','scan_id','neutralmass','coisolation','Pre_scan_id'])
+        ms2idxdf=pd.DataFrame(None,columns=['ProductIdx','PrecursorIdx','scan_time','scan_id','neutralmass','coisolation','Pre_scan_id'])
         ms2idxdf['ProductIdx']=list(range(len(self.jdata['msn_ids'])))
         ms2idxdf['scan_time']=[x[1]['scan_time'] for x in self.jdata['msn_ids']]
         ms2idxdf['scan_id']=[x[0] for x in self.jdata['msn_ids']]
@@ -241,10 +241,14 @@ class PrecursorPeakData(tb.IsDescription):
     
 #this class will go through 1 mzML file
 class Trawler:
-    def __init__(self,mzML,hdf5file,runidentifier=None,ms1key='MS1',ms2key='MS2',
+    def __init__(self,mzML,hdf5file,runidentifier=None,ms1key='MS1',ms2key='MS2',jsonfile=None,
                  title=None,ms1title=None,ms2title=None,h5index=False,start_from=None,end_at=None,ms1_deconargs=None,collect_allMS1=True):
         self.scan_object=msdomzml.ProcessedMzMLDeserializer(mzML)
         self.scan_source=mzML
+        if jsonfile is None:
+            self.jsonfile=mzML+'-idx.json'
+        else:
+            self.jsonfile=jsonfile
         self.h5file=hdf5file
         self.ms1key=ms1key
         self.ms2key=ms2key
@@ -272,6 +276,7 @@ class Trawler:
         self.targetlist=IonTargetList(msppm)
         self.targetlist.MS2Maker(dfIonMetaObject)
         self.targetlist.MS1Maker(dfPSMMetaObject)
+        self.msindexdfs=IndexedMSInfo(self.jsonfile, , h5file)
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
         self.PrecursorTbMake()
         self.ProductTbMake()
