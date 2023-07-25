@@ -280,6 +280,8 @@ class Trawler:
         self.targetlist.MS1Maker(dfPSMMetaObject)
         self.msindexdfs=IndexedMSInfo(self.jsonfile,self.runID,self.h5file)
         self.msindexdfs.main()
+        self.ms1scandict={self.msindexdfs.MS1Data.loc[u,'scan_id']:u for u in self.msindexdfs.MS1Data.index.tolist()}
+        self.ms2scandict={self.msindexdfs.MS2Data.loc[u,'scan_id']:u for u in self.msindexdfs.MS2Data.index.tolist()}
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
         self.PrecursorTbMake()
         self.ProductTbMake()
