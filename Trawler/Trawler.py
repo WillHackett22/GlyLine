@@ -196,6 +196,7 @@ class IndexedMSInfo:
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         if self.verbose:
             self.MS2Data=ms2idxdf
+            self.MS2GPIDs=ms2gpdf
         ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
         ms2gpdf.to_hdf(self.h5file,key=self.idxkey+'_MS2_GP',mode='a')
         
@@ -276,7 +277,8 @@ class Trawler:
         self.targetlist=IonTargetList(msppm)
         self.targetlist.MS2Maker(dfIonMetaObject)
         self.targetlist.MS1Maker(dfPSMMetaObject)
-        self.msindexdfs=IndexedMSInfo(self.jsonfile, , h5file)
+        self.msindexdfs=IndexedMSInfo(self.jsonfile,self.runID,self.h5file)
+        self.msindexdfs.main()
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
         self.PrecursorTbMake()
         self.ProductTbMake()
