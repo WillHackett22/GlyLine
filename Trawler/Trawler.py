@@ -354,8 +354,9 @@ class Trawler:
                 self.ms2counter+=1
     
     def ProductScanChecker(self,prod):
-        for peak in prod.deconvoluted_peak_set:
-            self.CheckMS2Targets(prod,peak)
+        if '.' not in prod.scan_id:
+            for peak in prod.deconvoluted_peak_set:
+                self.CheckMS2Targets(prod,peak)
         self.ProductIdx+=1
         
     def Trawling(self):
