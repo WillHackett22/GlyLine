@@ -211,6 +211,7 @@ class IndexedMSInfo:
                 self.MS1Info()
             try:
                 self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
+                self.MS2GPIDs=pd.read_hdf(self.h5file,self.idxkey+'_MS2_GP')
             except:
                 self.MS2Info(targetlist)
         
