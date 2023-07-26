@@ -194,6 +194,7 @@ class IndexedMSInfo:
         ms2gpdf['intensity']=intgp
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
+        ms2idxdf=ms2idxdf.set_index('ProductIdx')
         if self.verbose:
             self.MS2Data=ms2idxdf
             self.MS2GPIDs=ms2gpdf
