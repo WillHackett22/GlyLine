@@ -166,7 +166,7 @@ class IndexedMSInfo:
         ms2idxdf['Pre_scan_id']=[x[1]['precursor_scan_id'] for x in self.jdata['msn_ids']]
         ms2idxdf['coisolation']=[(len(x[1]['coisolation'])>0) | ('.' in x[0]) for x in self.jdata['msn_ids']]
         ms2idxdf['neutralmass']=[x[1]['neutral_mass'] for x in self.jdata['msn_ids']]
-        ms2gpdf=pd.DataFrame(None,columns=['ProductIdx','GPID','intensity'])
+        ms2gpdf=pd.DataFrame(None,columns=['ProductIdx','AddID','intensity'])
         gpids=[]
         prodidx=[]
         intgp=[]
@@ -190,16 +190,16 @@ class IndexedMSInfo:
                 prodidx.append(idx)
                 intgp.append(0)
         ms2gpdf['ProductIdx']=prodidx
-        ms2gpdf['GPID']=gpids
+        ms2gpdf['AddID']=gpids
         ms2gpdf['intensity']=intgp
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         ms2idxdf=ms2idxdf.set_index('ProductIdx')
         if self.verbose:
             self.MS2Data=ms2idxdf
-            self.MS2GPIDs=ms2gpdf
+            self.MS2AddIDs=ms2gpdf
         ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
-        ms2gpdf.to_hdf(self.h5file,key=self.idxkey+'_MS2_GP',mode='a')
+        ms2gpdf.to_hdf(self.h5file,key=self.idxkey+'_MS2_ID',mode='a')
         
     def main(self,targetlist,force=False):
         if force:
@@ -212,7 +212,7 @@ class IndexedMSInfo:
                 self.MS1Info()
             try:
                 self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
-                self.MS2GPIDs=pd.read_hdf(self.h5file,self.idxkey+'_MS2_GP')
+                self.MS2GPIDs=pd.read_hdf(self.h5file,self.idxkey+'_MS2_ID')
             except:
                 self.MS2Info(targetlist)
         
