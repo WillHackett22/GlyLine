@@ -201,6 +201,8 @@ class IndexedMSInfo:
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         ms2idxdf=ms2idxdf.set_index('ProductIdx')
+        MS2Dict={ms2idxdf.loc[u,'scan_id']:u for u in ms2idxdf.index.tolist()}
+        ms2idxdf['SrcProductIdx']=[MS2Dict[scanid.split('.')[0]] for scanid in ms2idxdf['scan_id'].tolist()]
         if self.verbose:
             self.MS2Data=ms2idxdf
             self.MS2AddIDs=ms2gpdf
