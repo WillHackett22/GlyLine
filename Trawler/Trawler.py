@@ -166,10 +166,11 @@ class IndexedMSInfo:
         ms2idxdf['Pre_scan_id']=[x[1]['precursor_scan_id'] for x in self.jdata['msn_ids']]
         ms2idxdf['coisolation']=[(len(x[1]['coisolation'])>0) | ('.' in x[0]) for x in self.jdata['msn_ids']]
         ms2idxdf['neutralmass']=[x[1]['neutral_mass'] for x in self.jdata['msn_ids']]
-        ms2gpdf=pd.DataFrame(None,columns=['ProductIdx','AddID','intensity'])
+        ms2gpdf=pd.DataFrame(None,columns=['ProductIdx','AddID','intensity','charge'])
         gpids=[]
         prodidx=[]
         intgp=[]
+        zgp=[]
         for idx,jv in enumerate(self.jdata['msn_ids']):
             if jv[1]['intensity']>0:
                 nmtemp=ms2idxdf['neutralmass'].iloc[idx]
@@ -177,21 +178,26 @@ class IndexedMSInfo:
                 if len(tempids)>0:
                     temptarg=targetlist.dfMS1Objects.ReducedTarget(tempids)
                     hits=targetlist.BoundIndex(nmtemp,temptarg).tolist()
+                    ztemp=jv[1]['charge']
                 else:
                     hits=[0]
+                    ztemp=0
                 if len(hits)==0:
                     hits=[0]
                 for h in hits:
                     gpids.append(h)
                     prodidx.append(idx)
                     intgp.append(jv[1]['intensity'])
+                    zgp.append(ztemp)
             else:
                 gpids.append(0)
                 prodidx.append(idx)
                 intgp.append(0)
+                zgp.append(0)
         ms2gpdf['ProductIdx']=prodidx
         ms2gpdf['AddID']=gpids
         ms2gpdf['intensity']=intgp
+        ms2gpdf['charge']=zgp
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         ms2idxdf=ms2idxdf.set_index('ProductIdx')
@@ -375,7 +381,8 @@ class Trawler:
             for peak in scan.precursor.deconvoluted_peak_set:    
                 self.CheckMS1Targets(scan,peak)                
         for prod in scan.products:
-            self.ProductScanChecker(prod)
+            if '.' not in prod.scan_id:
+                self.ProductScanChecker(prod)
         if self.ms1counter>=200:
             self.ms1table.flush()
             self.ms1counter=0
