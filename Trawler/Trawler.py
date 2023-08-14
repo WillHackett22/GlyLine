@@ -365,9 +365,9 @@ class Trawler:
     
     def ProductScanChecker(self,prod):
         if '.' not in prod.scan_id:
+            self.ProductIdx=self.ms2scandict[prod.scan_id]
             for peak in prod.deconvoluted_peak_set:
                 self.CheckMS2Targets(prod,peak)
-        self.ProductIdx+=1
         
     def Trawling(self):
         for scan in self.iter:
@@ -381,8 +381,7 @@ class Trawler:
             for peak in scan.precursor.deconvoluted_peak_set:    
                 self.CheckMS1Targets(scan,peak)                
         for prod in scan.products:
-            if '.' not in prod.scan_id:
-                self.ProductScanChecker(prod)
+            self.ProductScanChecker(prod)
         if self.ms1counter>=200:
             self.ms1table.flush()
             self.ms1counter=0
