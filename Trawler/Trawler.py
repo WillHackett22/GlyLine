@@ -371,8 +371,8 @@ class Trawler:
         
     def Trawling(self):
         for scan in self.iter:
+            self.PrecursorIdx=self.ms1scandict[scan.precursor.scan_id]
             self.Scooper(scan)
-            self.PrecursorIdx+=1
         self.ms1table.flush()
         self.ms2table.flush()
                 
