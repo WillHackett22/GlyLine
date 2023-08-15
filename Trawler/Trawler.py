@@ -171,6 +171,7 @@ class IndexedMSInfo:
         prodidx=[]
         intgp=[]
         zgp=[]
+        mzgp=[]
         for idx,jv in enumerate(self.jdata['msn_ids']):
             if jv[1]['intensity']>0:
                 nmtemp=ms2idxdf['neutralmass'].iloc[idx]
@@ -182,6 +183,7 @@ class IndexedMSInfo:
                 else:
                     hits=[0]
                     ztemp=0
+                mztemp=jv[1]['mz']
                 if len(hits)==0:
                     hits=[0]
                 for h in hits:
@@ -189,15 +191,18 @@ class IndexedMSInfo:
                     prodidx.append(idx)
                     intgp.append(jv[1]['intensity'])
                     zgp.append(ztemp)
+                    mzgp.append(mztemp)
             else:
                 gpids.append(0)
                 prodidx.append(idx)
                 intgp.append(0)
                 zgp.append(0)
+                mzgp.append(mztemp)
         ms2gpdf['ProductIdx']=prodidx
         ms2gpdf['AddID']=gpids
         ms2gpdf['intensity']=intgp
         ms2gpdf['charge']=zgp
+        ms2gpdf['mz']=mzgp
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
         ms2idxdf=ms2idxdf.set_index('ProductIdx')

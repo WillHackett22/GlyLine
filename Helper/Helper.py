@@ -91,4 +91,5 @@ def MassCalc(dfIon):
 def PeptideReducer(dfMeta):
     peps=[gpep.split("{")[0] for gpep in dfMeta['glycopeptide']]
     dfMeta['peptide']=peps
+   
     
