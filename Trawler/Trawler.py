@@ -234,9 +234,10 @@ class IndexedMSInfo:
         ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
         ms2gpdf.to_hdf(self.h5file,key=self.idxkey+'_MS2_ID',mode='a')
         
-    def main(self,targetlist,force=False):
+    def main(self,targetlist,scan_object,acqwindow,force=False):
         if force:
             self.MS1Info()
+            self.AcquistionWindowData(scan_object, acqwindow)
             self.MS2Info(targetlist)
         else:
             try:
@@ -245,9 +246,12 @@ class IndexedMSInfo:
                 self.MS1Info()
             try:
                 self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
-                self.MS2GPIDs=pd.read_hdf(self.h5file,self.idxkey+'_MS2_ID')
+                self.MS2AddIDs=pd.read_hdf(self.h5file,self.idxkey+'_MS2_ID')
+                self.AcqWindows=pd.read_hdf(self.h5file,self.idxkey+'_Acq')
             except:
+                self.AcquistionWindowData(scan_object, acqwindow)
                 self.MS2Info(targetlist)
+                
         
 #describe the data structure that trawler writes to
 # DDA: runid | ionid | overlap | time | neutralmass | charge | intensity | score | precursorIdx | productIdx
