@@ -228,6 +228,9 @@ class IndexedMSInfo:
         ms2idxdf=ms2idxdf.set_index('ProductIdx')
         MS2Dict={ms2idxdf.loc[u,'scan_id']:u for u in ms2idxdf.index.tolist()}
         ms2idxdf['SrcProductIdx']=[MS2Dict[scanid.split('.')[0]] for scanid in ms2idxdf['scan_id'].tolist()]
+        boundidx=[int(self.jdata['msn_ids'][bidx][1]['product_scan_id'].split('=')[3])-int(self.jdata['msn_ids'][bidx][1]['precursor_scan_id'].split('=')[3])-1 for bidx in ms2idxdf['SrcProductIdx']]
+        ms2idxdf['AcqIdx']=boundidx
+        ms2gpdf['AcqIdx']=ms2idxdf.loc[ms2gpdf['ProductIdx'].tolist(),'AcqIdx'].tolist()
         if self.verbose:
             self.MS2Data=ms2idxdf
             self.MS2AddIDs=ms2gpdf
