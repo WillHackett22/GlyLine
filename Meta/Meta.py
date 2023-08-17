@@ -347,7 +347,7 @@ class PSMMetaDataTable(DataTable):
                                    adc=adducts[t]
                                    subsubdf=self.AdductAdder(adc,subdf)
                                    adducteddf=pd.concat([adducteddf,subsubdf])
-        adducteddf['AddID']=list(range(adducteddf.shape[0]))
+        adducteddf['AddID']=[r+1 for r in range(adducteddf.shape[0])]
         adducteddf=adducteddf.set_index(['AddID'])
         return adducteddf
         

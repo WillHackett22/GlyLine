@@ -173,19 +173,20 @@ class IndexedMSInfo:
         zgp=[]
         mzgp=[]
         for idx,jv in enumerate(self.jdata['msn_ids']):
+            mztemp=jv[1]['mz']
+            ztemp=jv[1]['charge']
             if jv[1]['intensity']>0:
                 nmtemp=ms2idxdf['neutralmass'].iloc[idx]
                 tempids=targetlist.dfMS1Objects.RoundedTargetIDs(nmtemp)
                 if len(tempids)>0:
                     temptarg=targetlist.dfMS1Objects.ReducedTarget(tempids)
                     hits=targetlist.BoundIndex(nmtemp,temptarg).tolist()
-                    ztemp=jv[1]['charge']
                 else:
                     hits=[0]
-                    ztemp=0
-                mztemp=jv[1]['mz']
                 if len(hits)==0:
                     hits=[0]
+                if type(ztemp)==str:
+                    ztemp=0
                 for h in hits:
                     gpids.append(h)
                     prodidx.append(idx)
