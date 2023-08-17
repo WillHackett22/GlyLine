@@ -7,6 +7,7 @@ import numpy as np
 import tables as tb
 import json
 import ms_deisotope.output.mzml as msdomzml
+import ms_deisotope.averagine as msavg
 
 #let's iterate through things safely
 def safeNext(source):
@@ -231,6 +232,18 @@ class IndexedMSInfo:
         boundidx=[int(self.jdata['msn_ids'][bidx][1]['product_scan_id'].split('=')[3])-int(self.jdata['msn_ids'][bidx][1]['precursor_scan_id'].split('=')[3])-1 for bidx in ms2idxdf['SrcProductIdx']]
         ms2idxdf['AcqIdx']=boundidx
         ms2gpdf['AcqIdx']=ms2idxdf.loc[ms2gpdf['ProductIdx'].tolist(),'AcqIdx'].tolist()
+        subgrp=ms2gpdf.loc[ms2gpdf['intensity']>0].copy()
+        grp=subgrp.groupby(by=['AcqIdx','charge','mz'])['ProductIdx'].apply(list).reset_index()
+        isoclusts=msavg.AveragineCache(msavg.glycopeptide)
+        for g in grp.index:
+            tempiso=isoclusts.isotopic_cluster(grp.loc[g,'mz'],grp.loc[g,'charge'],truncate_after=0.99)
+            inbt=0
+            for pk in tempiso.peaklist:
+                if self.AcqWindows.loc[grp.loc[g,'AcqIdx'],'lower']<=pk.mz<=self.AcqWindows.loc[grp.loc[g,'AcqIdx'],'upper']:
+                    inbt+=pk.intensity
+            ms2gpdf.loc[ms2gpdf['ProductIdx'].isin(grp.loc[g,'ProductIdx']),'PercObs']=inbt
+        ms2gpdf.loc[np.isnan(ms2gpdf['PercObs']),'PercObs']=1
+        ms2gpdf['adj_intensity']=ms2gpdf['intensity']*ms2gpdf['PercObs']
         if self.verbose:
             self.MS2Data=ms2idxdf
             self.MS2AddIDs=ms2gpdf
