@@ -143,6 +143,25 @@ class IndexedMSInfo:
         f=open(jsonfile)
         self.jdata=json.load(f)
         
+    def AcquistionWindowData(self,scan_object,acqwindow):
+        lb=[]
+        ub=[]
+        testdf=pd.DataFrame(None,columns=['lower','upper'])
+        testdfred=pd.DataFrame(None,columns=['lower','upper'])
+        scan=scan_object.next()
+        while testdfred.shape[0]<acqwindow:
+            for prod in scan.products:
+                lb.append(prod.isolation_window.lower_bound)
+                ub.append(prod.isolation_window.upper_bound)
+            testdf['lower']=lb
+            testdf['upper']=ub
+            testdfred=testdf.loc[testdf.duplicated()==False].reset_index().drop('index',axis=1)
+            scan=scan_object.next()
+        #RESET SCANOBJECT
+        scan_object.reset()
+        testdfred.to_hdf(self.h5file,key=self.idxkey+'_Acq',mode='a')
+        self.AcqWindows=testdfred
+        
     def MS1Info(self):
         ms1idxdf=pd.DataFrame(None,columns=['PrecursorIdx','scan_time','scan_id'])
         ms1idxdf['PrecursorIdx']=list(range(len(self.jdata['ms1_ids'])))
