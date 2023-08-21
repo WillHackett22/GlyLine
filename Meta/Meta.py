@@ -106,6 +106,7 @@ class OverlappingInformation():
             self.stubcoreglys=stubcoreglys
         self.dfIon=gpiobj.dfIonMetaMaster
         self.dfIonUnique=gpiobj.dfIonMetaUnique
+        self.dfGPIonAssoc=gpiobj.dfGPIonAssoc
     
     def main(self):
         #get groups of oxonium ions
@@ -141,6 +142,7 @@ class OverlappingInformation():
                 #update dfIon aka dfIonMetaMaster
                 if len(missingfrags)>0:
                     self.IonFragmentAdder(missingfrags,gp,pep)
+        self.GP_Ion_Data()
        
     def GlycanIonGrouper(self):
         #this function collects oxonium ions and groups them by base glycan composition (eg ignores the -h2o etc)
@@ -182,6 +184,19 @@ class OverlappingInformation():
         # get existing subset of an ion type for a glycoeptide
         return set(self.dfIon.loc[(self.dfIon['glycopeptide']==gp) & (self.dfIon['fragment_type']==targetiontype),'IonID'])
     
+    def GP_Ion_Data(self):
+        gpiddict={self.dfGPIonAssoc.loc[u,'glycopeptide']:u for u in self.dfGPIonAssoc.index.tolist()}
+        dfGPIonAssocNew=self.dfIon.groupby(['glycopeptide'])['IonID'].apply(list).reset_index()
+        dfGPIonAssocNew['GPID']=[gpiddict[gp] for gp in dfGPIonAssocNew['glycopeptide'].tolist()]
+        dfGPIonAssocNew=dfGPIonAssocNew.set_index('GPID')
+        dfGPIonAssocNew['GPID']=dfGPIonAssocNew.index.values.tolist()
+        self.dfGPIonAssoc=dfGPIonAssocNew
+        # let's get the inverse association table
+        dfGPIonAssocMod=dfGPIonAssocNew.drop(['IonID'],axis=1)
+        dfTemp=pd.merge(self.dfIon,dfGPIonAssocMod,on='glycopeptide')
+        dfIonGPAssocNew=dfTemp.groupby(['IonID'])['GPID'].apply(list).reset_index()
+        self.dfIonGPAssoc=dfIonGPAssocNew
+    
 ### This is the class for the glycopeptide to ion association table and viceversa
 class GPIonAssociation(IonMetaDataTable):
     def __init__(self,hdf5file,filelistspec=None,GPIkey='GlyIonAssoc',IGPkey='IonGlyAssoc'):
@@ -193,9 +208,8 @@ class GPIonAssociation(IonMetaDataTable):
         if hasattr(self,'dfIonMetaMaster')==False:
             self.ListReader()
         dfGPIonAssoc=self.dfIonMetaMaster.groupby(['glycopeptide'])['IonID'].apply(list).reset_index()
-        dfGPIonAssoc['GPID']=range(dfGPIonAssoc.shape[0])
+        dfGPIonAssoc['GPID']=[r+1 for r in range(dfGPIonAssoc.shape[0])]
         #add 1 so that GPID 0 is miscellaneous
-        dfGPIonAssoc['GPID']=dfGPIonAssoc['GPID']+1
         dfGPIonAssoc=dfGPIonAssoc.set_index('GPID')
         self.dfGPIonAssoc=dfGPIonAssoc
         dfGPIonAssoc['GPID']=dfGPIonAssoc.index.values.tolist()

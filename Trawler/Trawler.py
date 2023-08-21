@@ -186,15 +186,14 @@ class IndexedMSInfo:
         ms2idxdf['Pre_scan_id']=[x[1]['precursor_scan_id'] for x in self.jdata['msn_ids']]
         ms2idxdf['coisolation']=[(len(x[1]['coisolation'])>0) | ('.' in x[0]) for x in self.jdata['msn_ids']]
         ms2idxdf['neutralmass']=[x[1]['neutral_mass'] for x in self.jdata['msn_ids']]
-        ms2gpdf=pd.DataFrame(None,columns=['ProductIdx','AddID','intensity','charge'])
+        ms2idxdf['intensity']=[x[1]['intensity'] for x in self.jdata['msn_ids']]
+        ms2idxdf['mz']=[x[1]['mz'] for x in self.jdata['msn_ids']]
+        ms2idxdf['charge']=[x[1]['charge'] for x in self.jdata['msn_ids']]
+        ms2idxdf.loc[ms2idxdf['charge']=='ChargeNotProvided','charge']=0
+        ms2gpdf=pd.DataFrame(None,columns=['ProductIdx','AddID'])
         gpids=[]
         prodidx=[]
-        intgp=[]
-        zgp=[]
-        mzgp=[]
         for idx,jv in enumerate(self.jdata['msn_ids']):
-            mztemp=jv[1]['mz']
-            ztemp=jv[1]['charge']
             if jv[1]['intensity']>0:
                 nmtemp=ms2idxdf['neutralmass'].iloc[idx]
                 tempids=targetlist.dfMS1Objects.RoundedTargetIDs(nmtemp)
@@ -205,34 +204,22 @@ class IndexedMSInfo:
                     hits=[0]
                 if len(hits)==0:
                     hits=[0]
-                if type(ztemp)==str:
-                    ztemp=0
                 for h in hits:
                     gpids.append(h)
                     prodidx.append(idx)
-                    intgp.append(jv[1]['intensity'])
-                    zgp.append(ztemp)
-                    mzgp.append(mztemp)
             else:
                 gpids.append(0)
                 prodidx.append(idx)
-                intgp.append(0)
-                zgp.append(0)
-                mzgp.append(mztemp)
         ms2gpdf['ProductIdx']=prodidx
         ms2gpdf['AddID']=gpids
-        ms2gpdf['intensity']=intgp
-        ms2gpdf['charge']=zgp
-        ms2gpdf['mz']=mzgp
         for j in self.MS1Data.index.tolist():
             ms2idxdf.loc[ms2idxdf['Pre_scan_id']==self.MS1Data['scan_id'].loc[j],'PrecursorIdx']=j
-        ms2idxdf=ms2idxdf.set_index('ProductIdx')
         MS2Dict={ms2idxdf.loc[u,'scan_id']:u for u in ms2idxdf.index.tolist()}
         ms2idxdf['SrcProductIdx']=[MS2Dict[scanid.split('.')[0]] for scanid in ms2idxdf['scan_id'].tolist()]
-        boundidx=[int(self.jdata['msn_ids'][bidx][1]['product_scan_id'].split('=')[3])-int(self.jdata['msn_ids'][bidx][1]['precursor_scan_id'].split('=')[3])-1 for bidx in ms2idxdf['SrcProductIdx']]
-        ms2idxdf['AcqIdx']=boundidx
-        ms2gpdf['AcqIdx']=ms2idxdf.loc[ms2gpdf['ProductIdx'].tolist(),'AcqIdx'].tolist()
-        subgrp=ms2gpdf.loc[ms2gpdf['intensity']>0].copy()
+        ms2idxdf['AcqIdx']=[int(self.jdata['msn_ids'][bidx][1]['product_scan_id'].split('=')[3])-int(self.jdata['msn_ids'][bidx][1]['precursor_scan_id'].split('=')[3])-1 for bidx in ms2idxdf['SrcProductIdx']]
+        ms2idxdf=ms2idxdf.set_index('ProductIdx')
+        ms2idxdf['ProductIdx']=ms2idxdf.index.tolist()
+        subgrp=ms2idxdf.loc[ms2idxdf['intensity']>0].copy()
         grp=subgrp.groupby(by=['AcqIdx','charge','mz'])['ProductIdx'].apply(list).reset_index()
         isoclusts=msavg.AveragineCache(msavg.glycopeptide)
         for g in grp.index:
@@ -241,9 +228,10 @@ class IndexedMSInfo:
             for pk in tempiso.peaklist:
                 if self.AcqWindows.loc[grp.loc[g,'AcqIdx'],'lower']<=pk.mz<=self.AcqWindows.loc[grp.loc[g,'AcqIdx'],'upper']:
                     inbt+=pk.intensity
-            ms2gpdf.loc[ms2gpdf['ProductIdx'].isin(grp.loc[g,'ProductIdx']),'PercObs']=inbt
-        ms2gpdf.loc[np.isnan(ms2gpdf['PercObs']),'PercObs']=1
-        ms2gpdf['adj_intensity']=ms2gpdf['intensity']*ms2gpdf['PercObs']
+            ms2idxdf.loc[ms2idxdf['ProductIdx'].isin(grp.loc[g,'ProductIdx']),'PercObs']=inbt
+        ms2idxdf.loc[np.isnan(ms2idxdf['PercObs']),'PercObs']=1
+        ms2idxdf['adj_intensity']=ms2idxdf['intensity']*ms2idxdf['PercObs']
+        ms2idxdf=ms2idxdf.drop('ProductIdx',axis=1)
         if self.verbose:
             self.MS2Data=ms2idxdf
             self.MS2AddIDs=ms2gpdf
@@ -298,7 +286,7 @@ class PrecursorPeakData(tb.IsDescription):
 #this class will go through 1 mzML file
 class Trawler:
     def __init__(self,mzML,hdf5file,runidentifier=None,ms1key='MS1',ms2key='MS2',jsonfile=None,
-                 title=None,ms1title=None,ms2title=None,h5index=False,start_from=None,end_at=None,ms1_deconargs=None,collect_allMS1=True):
+                 title=None,ms1title=None,ms2title=None,h5index=False,start_from=None,end_at=None,ms1_deconargs=None,collect_allMS1=True,acqwindow=1):
         self.scan_object=msdomzml.ProcessedMzMLDeserializer(mzML)
         self.scan_source=mzML
         if jsonfile is None:
@@ -325,15 +313,16 @@ class Trawler:
         self.ProductIdx=0
         self.ms1counter=0
         self.ms2counter=0
+        self.acqwindow=acqwindow
         self.collect_allMS1=collect_allMS1
     
     def main(self,dfIonMetaObject,dfPSMMetaObject,msppm=[10,20]):
-        self.IteratorGen()
         self.targetlist=IonTargetList(msppm)
         self.targetlist.MS2Maker(dfIonMetaObject)
         self.targetlist.MS1Maker(dfPSMMetaObject)
         self.msindexdfs=IndexedMSInfo(self.jsonfile,self.runID,self.h5file)
-        self.msindexdfs.main()
+        self.msindexdfs.main(self.targetlist,self.scan_object,self.acqwindow)
+        self.IteratorGen()
         self.ms1scandict={self.msindexdfs.MS1Data.loc[u,'scan_id']:u for u in self.msindexdfs.MS1Data.index.tolist()}
         self.ms2scandict={self.msindexdfs.MS2Data.loc[u,'scan_id']:u for u in self.msindexdfs.MS2Data.index.tolist()}
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
