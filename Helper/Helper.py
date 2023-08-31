@@ -91,5 +91,34 @@ def MassCalc(dfIon):
 def PeptideReducer(dfMeta):
     peps=[gpep.split("{")[0] for gpep in dfMeta['glycopeptide']]
     dfMeta['peptide']=peps
-   
+
+def BasicImputation(dataframe,dataname='intensity',refname='PrecursorIdx',imputetype=None):
+    outdf=pd.DataFrame(None,columns=[dataname,refname])
+    outdf[refname]=[r for r in range(dataframe[refname].min()-1,dataframe[refname].max()+2)]
+    outdf=outdf.set_index(refname)
+    outdf[refname]=outdf.index.tolist()
+    temp=[0]*outdf.shape[0]
+    for idx,j in enumerate(outdf.index.tolist()):
+        if j in dataframe[refname].tolist():
+            temp[idx]=dataframe.loc[dataframe[refname]==j,dataname].tolist()[0]
+    if imputetype!=None:
+        temphold=[0]+temp.copy()+[0]
+        tempf=temphold.copy()
+        tempb=temphold.copy()
+        for t in range(len(temp)):
+            if temp[t]==0:
+                tempf[t+1]=(tempf[t]+tempf[t+2])/2
+            if temp[-(t+1)]==0:
+                tempb[-(t+2)]=(tempb[-(t+1)]+tempb[-(t+3)])/2
+        if imputetype=='Average':
+            tempa=[(tempb[t]+tempf[t])/2 for t in range(len(temphold))]
+            temp=tempa[1:(len(tempa)-1)]
+        elif imputetype=='Higher':
+            temph=[np.max([tempb[t],tempf[t]]) for t in range(len(temphold))]
+            temp=temph[1:(len(tempa)-1)]
+        elif imputetype=='Lower':
+            temph=[np.min([tempb[t],tempf[t]]) for t in range(len(temphold))]
+            temp=temph[1:(len(tempa)-1)]
+    outdf[dataname]=temp
+    return outdf
     
