@@ -88,16 +88,27 @@ def MassCalc(dfIon):
     ions=[g[1] for g in mass1.keys()]
     return mass, gps, ions
 
+def MZfromNM(nm,z,Hmass=1.00797,pos=True):
+    if pos==True:
+        out=(nm+z*Hmass)/z
+    else:
+        out=((nm-z*Hmass)/z)
+    return out
+
 def PeptideReducer(dfMeta):
     peps=[gpep.split("{")[0] for gpep in dfMeta['glycopeptide']]
     dfMeta['peptide']=peps
 
-def BasicImputation(dataframe,dataname='intensity',refname='PrecursorIdx',imputetype=None):
+def BasicImputation(dataframe,dataname='intensity',refname='PrecursorIdx',RefMin=None,RefMax=None,imputetype=None,linearspan=3,basesignal=0):
     outdf=pd.DataFrame(None,columns=[dataname,refname])
-    outdf[refname]=[r for r in range(dataframe[refname].min()-1,dataframe[refname].max()+2)]
+    if RefMin==None:
+        RefMin=dataframe[refname].min()-1
+    if RefMax==None:
+        RefMax=dataframe[refname].max()+2
+    outdf[refname]=[r for r in range(RefMin,RefMax)]
     outdf=outdf.set_index(refname)
     outdf[refname]=outdf.index.tolist()
-    temp=[0]*outdf.shape[0]
+    temp=[basesignal]*outdf.shape[0]
     for idx,j in enumerate(outdf.index.tolist()):
         if j in dataframe[refname].tolist():
             temp[idx]=dataframe.loc[dataframe[refname]==j,dataname].tolist()[0]
@@ -106,19 +117,40 @@ def BasicImputation(dataframe,dataname='intensity',refname='PrecursorIdx',impute
         tempf=temphold.copy()
         tempb=temphold.copy()
         for t in range(len(temp)):
-            if temp[t]==0:
+            if temp[t]==basesignal:
                 tempf[t+1]=(tempf[t]+tempf[t+2])/2
-            if temp[-(t+1)]==0:
+            if temp[-(t+1)]==basesignal:
                 tempb[-(t+2)]=(tempb[-(t+1)]+tempb[-(t+3)])/2
         if imputetype=='Average':
             tempa=[(tempb[t]+tempf[t])/2 for t in range(len(temphold))]
             temp=tempa[1:(len(tempa)-1)]
         elif imputetype=='Higher':
             temph=[np.max([tempb[t],tempf[t]]) for t in range(len(temphold))]
-            temp=temph[1:(len(tempa)-1)]
+            temp=temph[1:(len(temph)-1)]
         elif imputetype=='Lower':
             temph=[np.min([tempb[t],tempf[t]]) for t in range(len(temphold))]
-            temp=temph[1:(len(tempa)-1)]
+            temp=temph[1:(len(temph)-1)]
+        elif imputetype=='Linear':
+            templin=temphold.copy()
+            holdidx=[]
+            for idx,val in enumerate(temphold):
+                if val==basesignal:
+                    holdidx+=[idx]
+                elif (val!=basesignal) & (linearspan>=len(holdidx)>0):
+                    startval=temphold[holdidx[0]-1]
+                    endval=temphold[idx]
+                    dx=(endval-startval)/(len(holdidx)+1)
+                    for jdx in holdidx:
+                        templin[jdx]=templin[jdx-1]+dx
+                    holdidx=[]
+                else:
+                    for jdx in holdidx:
+                        templin[jdx]=(tempb[jdx]+tempf[jdx])/2
+                    holdidx=[]
+            for jdx in holdidx:
+                templin[jdx]=(tempb[jdx]+tempf[jdx])/2
+            temp=templin[1:(len(templin)-1)]
     outdf[dataname]=temp
     return outdf
+
     
