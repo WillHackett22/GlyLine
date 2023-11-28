@@ -6,8 +6,9 @@ from scipy import signal
 from GlyLine.Helper import Helper
 
 class TheoreticalCurvesFromCWT:
-    def __init__(self,observed,scalemin=2,scalemax=31,exceptionthreshmin=3,PreIDMin=0,PreIDMax=None,imputetype=None,basesignal=0):
+    def __init__(self,observed,observedion,scalemin=2,scalemax=31,exceptionthreshmin=3,PreIDMin=0,PreIDMax=None,imputetype=None,basesignal=0):
         self.observed=observed
+        self.observedion=observedion
         self.scalemin=scalemin
         self.scalemax=scalemax
         self.PreIDMin=PreIDMin
@@ -16,8 +17,9 @@ class TheoreticalCurvesFromCWT:
         self.basesignal=basesignal
         self.exceptionthreshmin=exceptionthreshmin
         
-    def main(self):
+    def main(self,FragEffTable,IonGPAssoc):
         self.TheoreticalCurveGenerationMain()
+        self.IonAllocationMain(FragEffTable,IonGPAssoc)
         
     def TheoreticalCurveGenerationMain(self):
         self.curvesout=pd.DataFrame(None,columns=['scanid','peakid','PeakIntensity','AddID','GPID'])
@@ -25,6 +27,7 @@ class TheoreticalCurvesFromCWT:
         for labels, dfi in self.observed.groupby("AddID"):
             self.TheoreticalCurvesOfAddID(labels,dfi)
         self.pkdatadf['conversion']=[self.observed.loc[self.observed['AddID']==prow['AddID'],'intensity'].max()/self.pkdatadf.loc[self.pkdatadf['AddID']==prow['AddID'],'peakmass'].sum() for index, prow in self.pkdatadf.iterrows()]
+        self.curvesout['PeakIntensity']=[crow['PeakIntensity']*self.pkdatadf.loc[self.pkdatadf['peakid']==crow['peakid'],'conversion'].iloc[0] for index, crow in self.curvesout.iterrows()]    
             
     def CWTMaker(self,signalvector):
         self.cwtmatr=signal.cwt(signalvector,signal.ricker,np.arange(self.scalemin,self.scalemax))
@@ -121,3 +124,23 @@ class TheoreticalCurvesFromCWT:
             #repeat until empty values gone 
             emptyids=self.EmptyIndexFinder(dfi,labels)
     
+    def IonAllocationMain(self,FragEffTable,IonGPAssoc):
+        self.adjion_int=pd.DataFrame(None,columns=['GPID','IonID','scanid','adj_intensity'])
+        for scid, dfi in self.observedion.groupby(['scanid']):
+            gplist=self.curvesout.loc[self.curvesout['scanid']==scid,['GPID','PeakIntensity']].copy()
+            for ion in dfi['IonID']:
+               self.IonAllocationForIndIonID(dfi,ion,scid,gplist,FragEffTable,IonGPAssoc)
+    
+    def IonAllocationForIndIonID(self,dfi,ion,scid,gplist,FragEffTable,IonGPAssoc):
+        hits=gplist.loc[gplist['GPID'].isin(IonGPAssoc.loc[ion,'GPID'])].copy()
+        hits['FragEfficiency']=FragEffTable.loc[(FragEffTable['GPID'].isin(hits['GPID']) & (FragEffTable['IonID']==ion)),'FragEff'].tolist()
+        hits['FragRatio']=Helper.SumRatio(hits['FragEfficiency'])
+        hits['Ratio']=Helper.SumRatio(hits['PeakIntensity']*hits['FragRatio'])
+        tempint=pd.DataFrame(None,columns=['GPID','IonID','scanid','adj_intensity'])
+        tempint['adj_intensity']=list(dfi.loc[dfi['IonID']==ion,'intensity'].tolist()*np.array(hits['Ratio']))
+        tempint['GPID']=hits['GPID'].tolist()
+        tempint['IonID']=ion
+        tempint['scanid']=scid
+        self.adjion_int=pd.concat([self.adjion_int,tempint],ignore_index=True)
+        
+
