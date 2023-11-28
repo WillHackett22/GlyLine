@@ -17,9 +17,9 @@ class IonAllocationByTheoreticalCurve:
         self.basesignal=basesignal
         self.exceptionthreshmin=exceptionthreshmin
         
-    def main(self,FragEffTable,IonGPAssoc):
+    def main(self,IonGPAssoc,FragEffTable,UseFragEff=True):
         self.TheoreticalCurveGenerationMain()
-        self.IonAllocationMain(FragEffTable,IonGPAssoc)
+        self.IonAllocationMain(FragEffTable,IonGPAssoc,UseFragEff)
         
     def TheoreticalCurveGenerationMain(self):
         self.curvesout=pd.DataFrame(None,columns=['scanid','peakid','PeakIntensity','AddID','GPID'])
@@ -124,7 +124,9 @@ class IonAllocationByTheoreticalCurve:
             #repeat until empty values gone 
             emptyids=self.EmptyIndexFinder(dfi,labels)
     
-    def IonAllocationMain(self,FragEffTable,IonGPAssoc):
+    def IonAllocationMain(self,FragEffTable,IonGPAssoc,UseFragEff=True):
+        if UseFragEff!=True:
+            FragEffTable['FragEff']=1
         self.adjion_int=pd.DataFrame(None,columns=['GPID','IonID','scanid','adj_intensity'])
         for scid, dfi in self.observedion.groupby(['scanid']):
             gplist=self.curvesout.loc[self.curvesout['scanid']==scid,['GPID','PeakIntensity']].copy()
