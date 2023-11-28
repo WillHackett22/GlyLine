@@ -24,6 +24,7 @@ class TheoreticalCurvesFromCWT:
         self.pkdatadf=pd.DataFrame(None,columns=['peakid','AddID','scale','startscan','endscan','apex','peakmass'])
         for labels, dfi in self.observed.groupby("AddID"):
             self.TheoreticalCurvesOfAddID(labels,dfi)
+        self.pkdatadf['conversion']=[self.observed.loc[self.observed['AddID']==prow['AddID'],'intensity'].max()/self.pkdatadf.loc[self.pkdatadf['AddID']==prow['AddID'],'peakmass'].sum() for index, prow in self.pkdatadf.iterrows()]
             
     def CWTMaker(self,signalvector):
         self.cwtmatr=signal.cwt(signalvector,signal.ricker,np.arange(self.scalemin,self.scalemax))
