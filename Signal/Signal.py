@@ -5,7 +5,7 @@ import numpy as np
 from scipy import signal
 from GlyLine.Helper import Helper
 
-class TheoreticalCurvesFromCWT:
+class IonAllocationByTheoreticalCurve:
     def __init__(self,observed,observedion,scalemin=2,scalemax=31,exceptionthreshmin=3,PreIDMin=0,PreIDMax=None,imputetype=None,basesignal=0):
         self.observed=observed
         self.observedion=observedion
