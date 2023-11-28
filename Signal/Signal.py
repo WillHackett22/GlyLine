@@ -26,7 +26,7 @@ class IonAllocationByTheoreticalCurve:
         self.pkdatadf=pd.DataFrame(None,columns=['peakid','AddID','scale','startscan','endscan','apex','peakmass'])
         for labels, dfi in self.observed.groupby("AddID"):
             self.TheoreticalCurvesOfAddID(labels,dfi)
-        self.pkdatadf['conversion']=[self.observed.loc[self.observed['AddID']==prow['AddID'],'intensity'].max()/self.pkdatadf.loc[self.pkdatadf['AddID']==prow['AddID'],'peakmass'].sum() for index, prow in self.pkdatadf.iterrows()]
+        self.pkdatadf['conversion']=[self.observed.loc[self.observed['AddID']==prow['AddID'],'intensity'].sum()/self.pkdatadf.loc[self.pkdatadf['AddID']==prow['AddID'],'peakmass'].sum() for index, prow in self.pkdatadf.iterrows()]
         self.curvesout['PeakIntensity']=[crow['PeakIntensity']*self.pkdatadf.loc[self.pkdatadf['peakid']==crow['peakid'],'conversion'].iloc[0] for index, crow in self.curvesout.iterrows()]    
             
     def CWTMaker(self,signalvector):
