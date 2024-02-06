@@ -210,7 +210,62 @@ class XICAssociator:
         self.dfGlyIonAssoc.loc[self.dfGlyIonAssoc['GPID']==self.GPID]['IonID']
         
         
+def AddIDStatistics(AddIDPeakTable,AddToGP,GPIonAssoc):
+    AddIDTable=pd.DataFrame([[np.nan,0.0,0.0,0.0]],columns=['AddID','GPID','AcqIdx','apex'])
+    for adx in AddIDPeakTable['AddID'].unique():
+        for jdx in AddIDPeakTable.loc[AddIDPeakTable['AddID']==adx,'AcqIdx'].unique():
+            if AddIDPeakTable.loc[(AddIDPeakTable['AddID']==adx)&(AddIDPeakTable['AcqIdx']==jdx)&(AddIDPeakTable['ApexDist']==0),'apex'].shape[0]>1:
+                AddIDTable.loc[AddIDTable.index.max()+1]=[adx,AddToGP.loc[adx,'GPID'],jdx,AddIDPeakTable.loc[(AddIDPeakTable['AddID']==adx)&(AddIDPeakTable['AcqIdx']==jdx)&(AddIDPeakTable['ApexDist']==0),'apex'].iloc[0]]
+            else:
+                sub=AddIDPeakTable.loc[(AddIDPeakTable['AddID']==adx)&(AddIDPeakTable['AcqIdx']==jdx)]
+                AddIDTable.loc[AddIDTable.index.max()+1]=[adx,AddToGP.loc[adx,'GPID'],jdx,sub.loc[sub['ApexDist']==sub['ApexDist'].min(),'apex'].iloc[0]]
+    AddIDTable=AddIDTable.dropna().copy()
+    AddIDTable['Wavelen']=0.0
+    AddIDTable['TotalSignal']=0.0
+    AddIDTable['UniqueSignal']=0.0
+    AddIDTable['PotUniSignal']=0.0
+    AddIDTable['N_IonsTotal']=0.0
+    AddIDTable['N_IonsUni']=0.0
+    AddIDTable['N_IonsPotUni']=0.0
+    AddIDTable['RunID']=AddIDPeakTable['RunID'].iloc[0]
+    for adx in AddIDTable['AddID'].index:
+        tempapex=AddIDTable.loc[adx,'apex']
+        tacq=AddIDTable.loc[adx,'AcqIdx']
+        AddIDTable.loc[adx,'Wavelen']=AddIDPeakTable.loc[(AddIDPeakTable['AddID']==AddIDTable.loc[adx,'AddID'])&(AddIDPeakTable['apex']==tempapex),'wavelen'].max()
+        potcompadds=list(set(AddIDTable.loc[(AddIDTable['AcqIdx']==tacq)&(AddIDTable['apex']>=(tempapex-12))&(AddIDTable['apex']<=(tempapex+12)),'AddID'].unique())-set([AddIDTable.loc[adx,'AddID']]))
+        if len(potcompadds)>0:
+            competingions=list(set(GPIonAssoc.loc[AddToGP.loc[potcompadds,'GPID'],'IonID'].sum()))
+        else:
+            competingions=list(set())
+        sub1=AddIDPeakTable.loc[(AddIDPeakTable['AddID']==AddIDTable.loc[adx,'AddID'])&(AddIDPeakTable['AcqIdx']==tacq)]
+        AddIDTable.loc[adx,'N_IonsTotal']=sub1['IonID'].nunique()
+        AddIDTable.loc[adx,'TotalSignal']=sub1['AUC'].sum()
+        defuniqueions=list(set(sub1['IonID'].tolist())-set(competingions))
+        AddIDTable.loc[adx,'N_IonsUni']=len(defuniqueions)
+        if len(defuniqueions)>0:
+            AddIDTable.loc[adx,'UniqueSignal']=sub1.loc[sub1['IonID'].isin(defuniqueions),'AUC'].sum()
+        seenions=set(AddIDPeakTable.loc[(AddIDPeakTable['AddID'].isin(potcompadds))&(AddIDPeakTable['AcqIdx']==tacq),'IonID'].tolist())
+        possuniions=list(set(sub1['IonID'].tolist())-seenions)
+        AddIDTable.loc[adx,'N_IonsPotUni']=len(possuniions)
+        if len(possuniions)>0:
+            AddIDTable.loc[adx,'PotUniSignal']=sub1.loc[sub1['IonID'].isin(possuniions),'AUC'].sum()
+    AddIDTable['PercDefUnique']=np.log(AddIDTable['UniqueSignal']+1)/np.log(AddIDTable['TotalSignal']+1)
+    AddIDTable['PercPotUnique']=np.log(AddIDTable['PotUniSignal']+1)/np.log(AddIDTable['TotalSignal']+1)
+    return AddIDTable
 
+def DifferentSummations(CurveDF,grptgt='AddID',sumtgt='AUC',summethod='sum'):
+    TotalSum=CurveDF.groupby(grptgt).agg({sumtgt:summethod}).reset_index()
+    TotalSum.rename({sumtgt:sumtgt+'_Broad'},inplace=True,axis=1)
+    CloseSum=CurveDF.loc[CurveDF['ApexDist']<=1].groupby(grptgt).agg({sumtgt:summethod}).reset_index()
+    CloseSum.rename({sumtgt:sumtgt+'_Close'},inplace=True,axis=1)
+    ExactSum=CurveDF.loc[CurveDF['ApexDist']==0].groupby(grptgt).agg({sumtgt:summethod}).reset_index()
+    ExactSum.rename({sumtgt:sumtgt+'_Exact'},inplace=True,axis=1)
+    OneOffSum=CurveDF.loc[CurveDF['ApexDist']==1].groupby(grptgt).agg({sumtgt:summethod}).reset_index()
+    OneOffSum.rename({sumtgt:sumtgt+'_OneOff'},inplace=True,axis=1)
+    outdf=pd.merge(ExactSum,CloseSum,on=grptgt)
+    outdf=pd.merge(outdf,TotalSum,on=grptgt)
+    outdf=pd.merge(outdf,OneOffSum,on=grptgt)
+    return outdf
     
     
     

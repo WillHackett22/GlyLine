@@ -135,14 +135,15 @@ class IonTargetList:
     
 #class of functions to be used in trawler to get the indexed data from json file
 class IndexedMSInfo:
-    def __init__(self,jsonfile,runID,h5file,key='IndexInfo',verbose=True):
+    def __init__(self,runidentifier,h5file,jsonfile=None,key='IndexInfo',verbose=True):
         self.jsonfile=jsonfile
         self.verbose=verbose
-        self.runID=runID
+        self.runID=runidentifier
         self.h5file=h5file
-        self.idxkey=key+'_'+runID
-        f=open(jsonfile)
-        self.jdata=json.load(f)
+        self.idxkey=key+'_'+self.runID
+        if jsonfile is not None:
+            f=open(jsonfile)
+            self.jdata=json.load(f)
         
     def AcquistionWindowData(self,scan_object,acqwindow):
         lb=[]
@@ -238,6 +239,12 @@ class IndexedMSInfo:
         ms2idxdf.to_hdf(self.h5file,key=self.idxkey+'_MS2',mode='a')
         ms2gpdf.to_hdf(self.h5file,key=self.idxkey+'_MS2_ID',mode='a')
         
+    def ReadFromHDF5(self):
+        self.MS1Data=pd.read_hdf(self.h5file,self.idxkey+'_MS1')
+        self.MS2Data=pd.read_hdf(self.h5file,self.idxkey+'_MS2')
+        self.MS2AddIDs=pd.read_hdf(self.h5file,self.idxkey+'_MS2_ID')
+        self.AcqWindows=pd.read_hdf(self.h5file,self.idxkey+'_Acq')
+        
     def main(self,targetlist,scan_object,acqwindow,force=False):
         if force:
             self.MS1Info()
@@ -281,12 +288,14 @@ class PrecursorPeakData(tb.IsDescription):
     Decon = tb.Float32Col()
     PrecursorIdx = tb.Int32Col()
     AddID = tb.Int32Col()
-    Overlap = tb.Int8Col()    
+    Overlap = tb.Int8Col()
+    AcqWindow = tb.Int8Col()   
     
 #this class will go through 1 mzML file
-class Trawler:
+class TrawlerMain:
     def __init__(self,mzML,hdf5file,runidentifier=None,ms1key='MS1',ms2key='MS2',jsonfile=None,
-                 title=None,ms1title=None,ms2title=None,h5index=False,start_from=None,end_at=None,ms1_deconargs=None,collect_allMS1=True,acqwindow=1):
+                 title=None,ms1title=None,ms2title=None,h5index=False,start_from=None,
+                 end_at=None,ms1_deconargs=None,collect_allMS1=True,acqwindow=50):
         self.scan_object=msdomzml.ProcessedMzMLDeserializer(mzML)
         self.scan_source=mzML
         if jsonfile is None:
@@ -308,7 +317,10 @@ class Trawler:
         self.h5index=h5index
         self.startscan=start_from
         self.endscan=end_at
-        self.runID=runidentifier
+        if runidentifier==None:
+            self.runID='Holder'
+        else:
+            self.runID=runidentifier
         self.PrecursorIdx=0
         self.ProductIdx=0
         self.ms1counter=0
@@ -320,12 +332,13 @@ class Trawler:
         self.targetlist=IonTargetList(msppm)
         self.targetlist.MS2Maker(dfIonMetaObject)
         self.targetlist.MS1Maker(dfPSMMetaObject)
-        self.msindexdfs=IndexedMSInfo(self.jsonfile,self.runID,self.h5file)
+        self.msindexdfs=IndexedMSInfo(jsonfile=self.jsonfile,runidentifier=self.runID,h5file=self.h5file)
         self.msindexdfs.main(self.targetlist,self.scan_object,self.acqwindow)
         self.IteratorGen()
         self.ms1scandict={self.msindexdfs.MS1Data.loc[u,'scan_id']:u for u in self.msindexdfs.MS1Data.index.tolist()}
         self.ms2scandict={self.msindexdfs.MS2Data.loc[u,'scan_id']:u for u in self.msindexdfs.MS2Data.index.tolist()}
         self.h5connection=tb.open_file(self.h5file,mode='a',title=self.title)
+        self.GroupInitiate()
         self.PrecursorTbMake()
         self.ProductTbMake()
         self.Trawling()
@@ -337,21 +350,23 @@ class Trawler:
         else:
             self.iter=safeIter(self.scan_object)
     
+    def GroupInitiate(self):
+        try:
+            self.group=self.h5connection.create_group('/',self.runID,self.runID)
+        except:
+            self.group=getattr(self.h5connection.root,self.runID)
+    
     def PrecursorTbMake(self):
         try:
-            self.group1=self.h5connection.create_group('/','MS1','MS1 Data')
-            self.ms1table=self.h5connection.create_table(self.group1,self.ms1key,PrecursorPeakData,title=self.ms1title)
+            self.ms1table=self.h5connection.create_table(self.group,self.ms1key,PrecursorPeakData,title=self.ms1title)
         except:
-            self.group1=self.h5connection.root.MS1
-            self.ms1table=self.group1.MS1
+            self.ms1table=getattr(self.group,self.ms1key)
     
     def ProductTbMake(self):
         try:
-            self.group2=self.h5connection.create_group('/','MS2','MS2 Data')
-            self.ms2table=self.h5connection.create_table(self.group2,self.ms2key,ProductPeakData,title=self.ms2title)
+            self.ms2table=self.h5connection.create_table(self.group,self.ms2key,ProductPeakData,title=self.ms2title)
         except:
-            self.group2=self.h5connection.root.MS2
-            self.ms2table=self.group2.MS2
+            self.ms2table=getattr(self.group,self.ms2key)
     
     def MS2RowCollect(self,prod,peak,hit,hitct):
         ms2row=self.ms2table.row

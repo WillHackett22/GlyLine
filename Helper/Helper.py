@@ -2,6 +2,7 @@
 ## It contains functions that are more broadly applicable
 import pandas as pd
 import numpy as np
+from sklearn.linear_model import LinearRegression
 
 def GSoftCSVRead(filename,subset=None,index=['scan_id'],PSMBool=True):
     temp=pd.read_csv(filename,index_col=index)
@@ -34,12 +35,20 @@ def trap_sum(x,label1,labelt='scan_time'):
     temp=np.trapz(x.sort_values(labelt)[label1],x.sort_values(labelt)[labelt])
     return pd.Series(temp, index=['AUC'])
 
+def LogRelativizeIntensity(DF,ratio=.9):
+    logint=np.log(DF['Intensity']+1)
+    DF['LR_Intensity']=(logint-np.min(logint)*.9)/(np.max(logint)-np.min(logint)*.9)
+
+#turn a vector into proportions
+def SumRatio(vec):
+    return list(vec/np.sum(vec))
+
 #determine fragment type    
 def FragmentType(x):
     pepbool=x['fragment_name'].str.contains(pat='y[0-9]$|b[0-9]$|y[0-9][0-9]$|b[0-9][0-9]$|peptide$')
     stubbool=x['fragment_name'].str.contains(pat='y[0-9]\\+|b[0-9]\\+|y[0-9][0-9]\\+|b[0-9][0-9]\\+|peptide\\+')
     glybool=np.logical_not(np.logical_or(pepbool,stubbool))
-    x['fragment_type']=[np.nan]*len(x['fragment_name'])
+    x['fragment_type']=['str']*len(x['fragment_name'])
     x.loc[pepbool,'fragment_type']='Peptide'
     x.loc[stubbool,'fragment_type']='Stub'
     x.loc[glybool,'fragment_type']='Glycan'
@@ -79,14 +88,54 @@ def AUC_PreProdCalc(PSMFile,IonFile,index=['scan_id'],labelt='scan_time',ProdGro
     ProdAUC['precursor_charge']=ProdAUC.index.get_level_values(0).map(chargedict)
     return ProdAUC
 
+def BoundIndex(peakvalue,targetdf):
+    ID=targetdf.index[np.where((targetdf['upper']>=peakvalue) & (targetdf['lower']<=peakvalue))].values
+    return ID
 
+def binsearch(arr,x):
+    low = 0
+    high = len(arr) - 1
+    mid = 0
+    while low <= high:
+        mid = (high + low) // 2
+        if arr[mid] < x:
+            low = mid + 1
+        elif arr[mid] > x:
+            high = mid - 1
+        else:
+            return mid
+    return -1
 
-def MassCalc(dfIon):
+def ConfirmedGPIdxMaker(PSMMetaMaster,MS1Data,RunID=None,margin=18):
+    if RunID is None:
+        confirmed_gps=PSMMetaMaster['GPID','scan_time']
+    else:
+        confirmed_gps=PSMMetaMaster.loc[PSMMetaMaster['RunID']==RunID,['GPID','scan_time']]
+    timebounds=pd.DataFrame(None,columns=['lower','upper'])
+    timebounds['lower']=MS1Data['scan_time'].tolist()
+    timebounds['upper']=MS1Data['scan_time'].tolist()[1:]+[MS1Data['scan_time'].max()+MS1Data['scan_time'].min()]
+    timebounds.index=MS1Data.index
+    tidx=[]
+    for j in confirmed_gps['scan_time']:
+        tidx+=[BoundIndex(j,timebounds)[0]]
+    confirmed_gps['PrecursorIdx']=tidx
+    confirmed_times=pd.DataFrame([[0,0]],columns=['GPID','PrecursorIdx'])
+    for cgidx in confirmed_gps.index:
+        tempdf=pd.DataFrame(None,columns=['GPID','PrecursorIdx'])
+        t=confirmed_gps.loc[cgidx,'PrecursorIdx']
+        tempdf['PrecursorIdx']=np.arange(t-margin,t+margin)
+        tempdf['GPID']=confirmed_gps.loc[cgidx,'GPID']
+        confirmed_times=pd.concat([confirmed_times,tempdf])
+    confirmed_times=confirmed_times.drop(0).reset_index().drop('index',axis=1)
+    return confirmed_times
+
+def MassCalc(dfIon,decimals=4):
     mass1=-dfIon.groupby(['glycopeptide','fragment_name'])['mass_accuracy_ppm'].apply(np.unique)*dfIon.groupby(['glycopeptide','fragment_name'])['peak_mass'].apply(np.unique)/1000000+dfIon.groupby(['glycopeptide','fragment_name'])['peak_mass'].apply(np.unique)
-    mass=[np.median(m) for m in mass1.values]
-    gps=[g[0] for g in mass1.keys()]
-    ions=[g[1] for g in mass1.keys()]
-    return mass, gps, ions
+    dfTemp=pd.DataFrame(None)
+    dfTemp['neutralmass']=[np.round(np.median(m),decimals) for m in mass1.values]
+    dfTemp['glycopeptide']=[g[0] for g in mass1.keys()]
+    dfTemp['fragment_name']=[g[1] for g in mass1.keys()]
+    return dfTemp
 
 def MZfromNM(nm,z,Hmass=1.00797,pos=True):
     if pos==True:
@@ -99,7 +148,9 @@ def PeptideReducer(dfMeta):
     peps=[gpep.split("{")[0] for gpep in dfMeta['glycopeptide']]
     dfMeta['peptide']=peps
 
-def BasicImputation(dataframe,dataname='intensity',refname='PrecursorIdx',RefMin=None,RefMax=None,imputetype=None,linearspan=3,basesignal=0):
+
+
+def BasicImputation(dataframe,dataname='Intensity',refname='PrecursorIdx',RefMin=None,RefMax=None,imputetype=None,linearspan=3,basesignal=0):
     outdf=pd.DataFrame(None,columns=[dataname,refname])
     if RefMin==None:
         RefMin=dataframe[refname].min()-1
@@ -153,4 +204,13 @@ def BasicImputation(dataframe,dataname='intensity',refname='PrecursorIdx',RefMin
     outdf[dataname]=temp
     return outdf
 
-    
+def LinearModelGenerator(curvedf,tgtpids,positive=True):
+    tempdf=curvedf.iloc[np.argwhere(curvedf[['Intensity']+tgtpids].sum(axis=1)>0).flatten(),]
+    y=tempdf['Intensity'].array
+    X=np.array([[0]]*tempdf.shape[0])
+    for tgt in tgtpids:
+        X=np.concatenate((X,np.array(tempdf[tgt].tolist()).reshape([-1,1])),axis=1)
+    m,n=X.shape
+    X= X[np.arange(n) != np.array([0]*m)[:,None]].reshape(m,-1)
+    model=LinearRegression(fit_intercept=False,positive=True).fit(X,y)
+    return model, X, y  
